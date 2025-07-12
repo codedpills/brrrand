@@ -1,13 +1,38 @@
 import React, { useState } from 'react'
 import { Search, Palette, Type, Image, Download, Sparkles } from 'lucide-react'
+import { validateUrl } from '../utils/urlValidation'
 
 export const LandingPage: React.FC = () => {
   const [url, setUrl] = useState('')
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const [isValidating, setIsValidating] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement asset extraction
-    console.log('Extracting assets from:', url)
+    setIsValidating(true)
+    setValidationError(null)
+    
+    // Validate the URL
+    const validation = validateUrl(url)
+    
+    if (!validation.isValid) {
+      setValidationError(validation.error)
+      setIsValidating(false)
+      return
+    }
+    
+    // TODO: Implement asset extraction with validated URL
+    console.log('Extracting assets from:', validation.normalizedUrl)
+    console.log('Domain:', validation.domain)
+    setIsValidating(false)
+  }
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUrl(e.target.value)
+    // Clear validation error when user starts typing
+    if (validationError) {
+      setValidationError(null)
+    }
   }
 
   const features = [
@@ -63,18 +88,32 @@ export const LandingPage: React.FC = () => {
                   id="website-url"
                   type="url"
                   value={url}
-                  onChange={(e) => setUrl(e.target.value)}
+                  onChange={handleUrlChange}
                   placeholder="https://example.com"
-                  className="w-full pl-10 pr-4 py-4 text-lg border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-colors"
+                  className={`w-full pl-10 pr-4 py-4 text-lg border-2 rounded-lg focus:ring-2 focus:ring-primary-200 outline-none transition-colors ${
+                    validationError 
+                      ? 'border-red-500 focus:border-red-500' 
+                      : 'border-gray-200 focus:border-primary-500'
+                  }`}
                   required
                 />
+                {validationError && (
+                  <p className="mt-2 text-sm text-red-600" role="alert">
+                    {validationError}
+                  </p>
+                )}
               </div>
               <button
                 type="submit"
-                className="bg-primary-500 hover:bg-primary-600 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors flex items-center justify-center gap-2"
+                disabled={isValidating}
+                className={`px-8 py-4 rounded-lg font-semibold text-lg transition-colors flex items-center justify-center gap-2 ${
+                  isValidating
+                    ? 'bg-gray-400 cursor-not-allowed text-white'
+                    : 'bg-primary-500 hover:bg-primary-600 text-white'
+                }`}
               >
                 <Download className="w-5 h-5" />
-                Extract Assets
+                {isValidating ? 'Validating...' : 'Extract Assets'}
               </button>
             </div>
           </div>
