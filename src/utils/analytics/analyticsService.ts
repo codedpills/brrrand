@@ -4,10 +4,9 @@
  * with privacy-compliant data collection and user consent
  */
 
-// Google Analytics Measurement ID and GTM Container ID
-// In production, these should be environment variables
-const GA_MEASUREMENT_ID = 'G-XXXXXXXXXX'; // Replace with actual GA4 Measurement ID
-const GTM_CONTAINER_ID = 'GTM-XXXXXXX';   // Replace with actual GTM Container ID
+// Google Analytics Measurement ID and GTM Container ID from environment variables
+const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || '';
+const GTM_CONTAINER_ID = import.meta.env.VITE_GTM_CONTAINER_ID || '';
 
 /**
  * Analytics consent states
@@ -124,7 +123,15 @@ export class AnalyticsService {
 
     this.initialized = true;
 
-    // Only initialize tracking if consent has been decided
+    const isProduction = import.meta.env.PROD;
+    
+    // Skip initialization in development unless explicitly enabled
+    if (!isProduction && !import.meta.env.VITE_ENABLE_ANALYTICS) {
+      console.log('Analytics disabled in development. Set VITE_ENABLE_ANALYTICS=true to enable.');
+      return;
+    }
+
+    // Only initialize tracking if consent has been granted
     if (this.consent.analytics === ConsentState.GRANTED) {
       this.initializeGTM();
       this.initializeGA4();
@@ -135,12 +142,17 @@ export class AnalyticsService {
    * Initialize Google Tag Manager
    */
   private initializeGTM(): void {
-    if (this.gtmInitialized || !GTM_CONTAINER_ID) {
+    if (this.gtmInitialized) {
+      return;
+    }
+    
+    if (!GTM_CONTAINER_ID) {
+      console.warn('GTM Container ID not provided. Set VITE_GTM_CONTAINER_ID environment variable.');
       return;
     }
 
     try {
-      // Add GTM script to document
+      // Create and add GTM script to document
       const script = document.createElement('script');
       script.innerHTML = `
         (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -151,7 +163,7 @@ export class AnalyticsService {
       `;
       document.head.appendChild(script);
 
-      // Add GTM noscript fallback
+      // Add GTM noscript fallback for browsers with JavaScript disabled
       const noscript = document.createElement('noscript');
       const iframe = document.createElement('iframe');
       iframe.src = `https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}`;
@@ -163,6 +175,14 @@ export class AnalyticsService {
       document.body.appendChild(noscript);
 
       this.gtmInitialized = true;
+      
+      // Add environment info to dataLayer
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        'environment': import.meta.env.MODE,
+        'buildDate': new Date().toISOString()
+      });
+      
       console.log('Google Tag Manager initialized');
     } catch (error) {
       console.error('Failed to initialize GTM:', error);
@@ -173,7 +193,12 @@ export class AnalyticsService {
    * Initialize Google Analytics 4
    */
   private initializeGA4(): void {
-    if (this.gaInitialized || !GA_MEASUREMENT_ID) {
+    if (this.gaInitialized) {
+      return;
+    }
+    
+    if (!GA_MEASUREMENT_ID) {
+      console.warn('GA Measurement ID not provided. Set VITE_GA_MEASUREMENT_ID environment variable.');
       return;
     }
 
@@ -189,10 +214,27 @@ export class AnalyticsService {
       window.gtag = function() {
         window.dataLayer.push(arguments);
       };
+      
+      // Configure GA4
       window.gtag('js', new Date());
       window.gtag('config', GA_MEASUREMENT_ID, {
         send_page_view: true,
-        anonymize_ip: true
+        anonymize_ip: true,
+        cookie_domain: window.location.hostname,
+        cookie_flags: 'SameSite=None;Secure',
+        custom_map: {
+          dimension1: 'client_id',
+          dimension2: 'environment'
+        }
+      });
+      
+      // Set additional parameters
+      window.gtag('set', {
+        'user_properties': {
+          'environment': import.meta.env.MODE,
+          'app_version': import.meta.env.VITE_APP_VERSION || '1.0.0',
+          'app_name': 'Brrrand'
+        }
       });
 
       this.gaInitialized = true;
@@ -232,26 +274,32 @@ export class AnalyticsService {
     }
 
     try {
+      const eventParams = {
+        event_category: eventData.category,
+        event_label: eventData.label,
+        value: eventData.value,
+        non_interaction: eventData.nonInteraction || false,
+        timestamp: new Date().toISOString(),
+        environment: import.meta.env.MODE,
+        ...eventData
+      };
+
+      // Track with GA4
       if (window.gtag) {
-        window.gtag('event', eventData.action, {
-          event_category: eventData.category,
-          event_label: eventData.label,
-          value: eventData.value,
-          non_interaction: eventData.nonInteraction || false,
-          ...eventData
-        });
+        window.gtag('event', eventData.action, eventParams);
       }
       
       // Also push to dataLayer for GTM
       if (window.dataLayer) {
         window.dataLayer.push({
           event: eventData.action,
-          eventCategory: eventData.category,
-          eventLabel: eventData.label,
-          eventValue: eventData.value,
-          nonInteraction: eventData.nonInteraction || false,
-          ...eventData
+          ...eventParams
         });
+      }
+      
+      // Log events in development
+      if (import.meta.env.DEV) {
+        console.debug(`Analytics Event: ${eventData.action}`, eventParams);
       }
     } catch (error) {
       console.error('Failed to track event:', error);
