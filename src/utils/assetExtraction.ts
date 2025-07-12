@@ -5,6 +5,8 @@
 
 // Import the secure HTML parser
 import { parseHtmlSecurely } from './secureHtmlParser'
+// Import proxy utilities
+import { fetchThroughProxy, shouldUseProxy, isProxyAvailable } from './proxyUtils'
 
 export interface BrandAsset {
   type: 'logo' | 'color' | 'font' | 'illustration'
@@ -60,37 +62,45 @@ export async function extractAssets(url: string): Promise<AssetExtractionResult>
   }
 
   try {
-    const response = await fetch(normalizedUrl)
+    let html: string;
     
-    if (!response.ok) {
-      return {
-        ...baseResult,
-        success: false,
-        assets: null,
-        error: `Website returned ${response.status}: ${response.statusText}`
+    const proxyAvailable = await isProxyAvailable().catch(() => false);
+    
+    if (shouldUseProxy() && proxyAvailable) {
+      html = await fetchThroughProxy(normalizedUrl);
+    } else {
+      const response = await fetch(normalizedUrl);
+      
+      if (!response.ok) {
+        return {
+          ...baseResult,
+          success: false,
+          assets: null,
+          error: `Website returned ${response.status}: ${response.statusText}`
+        };
       }
+      
+      html = await response.text();
     }
-
-    const html = await response.text()
     
-    // Use the secure HTML parser instead of the regex-based one
-    // Pass the normalized URL to ensure proper URL resolution
-    const assets = await parseHtmlSecurely(html, normalizedUrl)
+    // Use the secure HTML parser with the normalized URL to ensure proper URL resolution
+    const assets = await parseHtmlSecurely(html, normalizedUrl);
     
     return {
       ...baseResult,
       success: true,
       assets,
       error: null
-    }
+    };
     
   } catch (error) {
+    console.error('Asset extraction error:', error);
     return {
       ...baseResult,
       success: false,
       assets: null,
-      error: 'Failed to fetch website content'
-    }
+      error: error instanceof Error ? error.message : 'Failed to fetch website content'
+    };
   }
 }
 

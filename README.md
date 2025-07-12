@@ -6,6 +6,7 @@ A React-based web application that extracts brand assets (logos, colors, fonts, 
 
 - **Instant Asset Extraction**: Extract brand assets from any website URL
 - **Demo Mode**: Test with realistic mock data to avoid CORS issues
+- **Server-side Proxy**: Bypasses CORS restrictions and adds security
 - **Environment-Based Configuration**: Configurable via environment variables
 - **Comprehensive Testing**: Full test coverage with TDD approach
 - **Modern UI**: Built with React, TypeScript, and Tailwind CSS
@@ -16,6 +17,9 @@ A React-based web application that extracts brand assets (logos, colors, fonts, 
 
 - `VITE_DEMO_MODE`: Controls demo mode (true/false)
 - `VITE_SHOW_DEMO_TOGGLE`: Controls toggle visibility (true/false)
+- `VITE_USE_PROXY`: Controls whether to use the proxy in development (true/false)
+- `PORT`: The port on which the proxy server will run (default: 5000)
+- `ALLOWED_ORIGIN`: In production, restricts CORS to this origin (default: https://brrrand.com)
 
 ### Development Scripts
 
@@ -28,6 +32,12 @@ npm run dev:demo
 
 # Force real extraction mode
 npm run dev:real
+
+# Run proxy server in development mode
+npm run dev:server
+
+# Run both client and proxy server together
+npm run dev:full
 ```
 
 ### Build Scripts
@@ -41,6 +51,16 @@ npm run build:demo
 
 # Build with real mode enabled
 npm run build:real
+```
+
+### Production Scripts
+
+```bash
+# Build and start production server
+npm run start
+
+# Start server only (after build)
+npm run server
 ```
 
 ## Environment Files
@@ -143,3 +163,35 @@ The application is fully configured with environment-based demo mode:
 - **Testing**: Comprehensive test suite with 41 passing tests
 
 For detailed environment configuration, see [ENV_CONFIG.md](./ENV_CONFIG.md).
+
+## Proxy Server
+
+The application includes a server-side proxy to handle CORS issues when extracting assets from external websites. This is especially important for production use.
+
+### Key Features
+
+- **CORS Handling**: Bypasses browser CORS restrictions
+- **Rate Limiting**: Prevents abuse of the proxy
+- **URL Validation**: Ensures only valid URLs are processed
+- **Content Sanitization**: Removes potentially dangerous elements
+- **Security Headers**: Protects against common web vulnerabilities
+
+### Architecture
+
+```
+Client (React App) <-> Proxy Server (Express) <-> External Websites
+```
+
+### Configuration
+
+To use the proxy server in development:
+
+```bash
+# Start both client and server
+npm run dev:full
+
+# Or set environment variable in .env.local
+VITE_USE_PROXY=true
+```
+
+For more details on the proxy server implementation, see [server/README.md](./server/README.md).

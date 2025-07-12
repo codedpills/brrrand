@@ -25,7 +25,7 @@ describe('LandingPage', () => {
     render(<LandingPage />)
     
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
-    expect(screen.getByText('Extract Brand Assets')).toBeInTheDocument()
+    expect(screen.getByText('Extract Brrrand Assets')).toBeInTheDocument()
     expect(screen.getByText('Instantly')).toBeInTheDocument()
   })
 
