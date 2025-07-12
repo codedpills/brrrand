@@ -41,9 +41,7 @@ export async function extractAssets(url: string): Promise<AssetExtractionResult>
   }
 
   try {
-    // Fetch the website content
     const response = await fetch(url)
-    console.log("🚀 ~ extractAssets ~ response:", response)
     
     if (!response.ok) {
       return {
@@ -56,7 +54,6 @@ export async function extractAssets(url: string): Promise<AssetExtractionResult>
 
     const html = await response.text()
     
-    // Parse and extract assets
     const assets = await parseHtmlForAssets(html, url)
     
     return {
@@ -67,7 +64,6 @@ export async function extractAssets(url: string): Promise<AssetExtractionResult>
     }
     
   } catch (error) {
-    console.log("🚀 ~ extractAssets ~ error:", error)
     return {
       ...baseResult,
       success: false,

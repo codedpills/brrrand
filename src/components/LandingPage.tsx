@@ -4,7 +4,6 @@ import { extractAssets, type AssetExtractionResult } from '../utils/assetExtract
 import { mockExtractAssets, suggestedTestSites } from '../utils/mockAssetExtraction'
 import { downloadAsset, downloadAllAssets, copyToClipboard, generateFontCSSImports } from '../utils/downloadUtils'
 
-// Component imports
 import { HeroSection } from './HeroSection'
 import { ExtractionForm } from './ExtractionForm'
 import { DemoSiteSuggestions } from './DemoSiteSuggestions'
@@ -27,7 +26,6 @@ export const LandingPage: React.FC = () => {
   const defaultDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.VITE_DEMO_MODE === undefined
   const [isDemoMode, setIsDemoMode] = useState(defaultDemoMode)
   
-  // Show demo toggle in development or when explicitly enabled
   const showDemoToggle = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_TOGGLE === 'true'
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,7 +99,7 @@ export const LandingPage: React.FC = () => {
     <div data-testid="landing-page" className="min-h-screen bg-white px-4 py-8">
       <div className="max-w-4xl mx-auto text-center">
         <HeroSection 
-          title="Extract Brand Assets"
+          title="Extract Brrrand Assets"
           subtitle="Get client brand assets instantly - no more email chains"
           description="Free to use • No storage required • Instant results"
         />
