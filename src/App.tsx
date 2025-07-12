@@ -1,7 +1,12 @@
-import { LandingPage } from './components/LandingPage'
+import { LandingPage } from './components/LandingPage';
+import { AnalyticsProvider } from './components/analytics';
 
 function App() {
-  return <LandingPage />
+  return (
+    <AnalyticsProvider>
+      <LandingPage />
+    </AnalyticsProvider>
+  );
 }
 
-export default App
+export default App;

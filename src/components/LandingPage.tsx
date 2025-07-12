@@ -3,6 +3,7 @@ import { validateUrl } from '../utils/urlValidation'
 import { extractAssets, type AssetExtractionResult } from '../utils/assetExtraction'
 import { mockExtractAssets, suggestedTestSites } from '../utils/mockAssetExtraction'
 import { downloadAsset, downloadAllAssets, copyToClipboard, generateFontCSSImports } from '../utils/downloadUtils'
+import { useAnalytics } from './analytics'
 
 import { HeroSection } from './HeroSection'
 import { ExtractionForm } from './ExtractionForm'
@@ -27,6 +28,9 @@ export const LandingPage: React.FC = () => {
   const [isDemoMode, setIsDemoMode] = useState(defaultDemoMode)
   
   const showDemoToggle = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_TOGGLE === 'true'
+  
+  // Analytics hook for tracking
+  const { trackExtraction, trackAssetDownload, trackError, trackAction } = useAnalytics()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,10 +38,18 @@ export const LandingPage: React.FC = () => {
     setValidationError(null)
     setExtractionResult(null)
     
+    if (!url.trim()) {
+      setValidationError('Please enter a URL')
+      trackError('Empty URL submission');
+      setIsValidating(false)
+      return
+    }
+    
     const validation = validateUrl(url)
     
     if (!validation.isValid) {
       setValidationError(validation.error)
+      trackError(`Invalid URL: ${url}`, 'URL_VALIDATION_ERROR');
       setIsValidating(false)
       return
     }
@@ -50,6 +62,9 @@ export const LandingPage: React.FC = () => {
       console.log('Domain:', validation.domain)
       console.log('Demo mode:', isDemoMode)
       
+      // Track extraction attempt
+      trackAction('extraction_attempt', validation.domain || undefined);
+      
       // Use mock extraction in demo mode to avoid CORS
       const result = isDemoMode 
         ? await mockExtractAssets(validation.normalizedUrl!)
@@ -59,13 +74,28 @@ export const LandingPage: React.FC = () => {
       
       if (!result.success) {
         setValidationError(result.error || 'Failed to extract assets')
+        trackExtraction(validation.normalizedUrl || url, false);
+      } else {
+        // Count total assets extracted
+        const totalAssets = 
+          (result.assets?.logos?.length || 0) + 
+          (result.assets?.colors?.length || 0) + 
+          (result.assets?.fonts?.length || 0) + 
+          (result.assets?.illustrations?.length || 0);
+          
+        // Track successful extraction
+        trackExtraction(validation.normalizedUrl || url, true, totalAssets);
       }
     } catch (error) {
       console.error('Asset extraction failed:', error)
       if (error instanceof TypeError && error.message.includes('CORS')) {
-        setValidationError('CORS error: Enable Demo Mode to test asset extraction, or use a CORS proxy for real websites.')
+        const errorMessage = 'CORS error: Enable Demo Mode to test asset extraction, or use a CORS proxy for real websites.';
+        setValidationError(errorMessage);
+        trackError(errorMessage, 'CORS_ERROR');
       } else {
-        setValidationError('An unexpected error occurred. Please try again.')
+        const errorMessage = 'An unexpected error occurred. Please try again.';
+        setValidationError(errorMessage);
+        trackError(errorMessage, 'EXTRACTION_ERROR');
       }
     } finally {
       setIsExtracting(false)
@@ -76,6 +106,7 @@ export const LandingPage: React.FC = () => {
     setUrl(siteUrl)
     setValidationError(null)
     setExtractionResult(null)
+    trackAction('demo_site_selected', siteUrl);
   }
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,12 +117,23 @@ export const LandingPage: React.FC = () => {
   }
 
   const handleDemoToggle = () => {
-    setIsDemoMode(!isDemoMode)
+    const newMode = !isDemoMode;
+    setIsDemoMode(newMode);
+    trackAction('demo_mode_toggled', newMode ? 'enabled' : 'disabled');
   }
 
   const handleDownloadAllAssets = () => {
     if (extractionResult) {
-      downloadAllAssets(extractionResult)
+      downloadAllAssets(extractionResult);
+      
+      // Track the download of all assets
+      const totalAssets = 
+        (extractionResult.assets?.logos?.length || 0) + 
+        (extractionResult.assets?.colors?.length || 0) + 
+        (extractionResult.assets?.fonts?.length || 0) + 
+        (extractionResult.assets?.illustrations?.length || 0);
+      
+      trackAssetDownload('all', totalAssets);
     }
   }
 
