@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Search, Palette, Type, Image, Download, Sparkles, ExternalLink } from 'lucide-react'
+import { Search, Palette, Type, Image, Download, Sparkles, ExternalLink, Copy, Archive } from 'lucide-react'
 import { validateUrl } from '../utils/urlValidation'
 import { extractAssets, type AssetExtractionResult } from '../utils/assetExtraction'
 import { mockExtractAssets, suggestedTestSites } from '../utils/mockAssetExtraction'
@@ -72,6 +72,110 @@ export const LandingPage: React.FC = () => {
     if (validationError) {
       setValidationError(null)
     }
+  }
+
+  // Download utility functions
+  const downloadAsset = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url, { mode: 'cors' })
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+    } catch (error) {
+      console.error('Download failed:', error)
+      // Fallback: open in new tab
+      window.open(url, '_blank')
+    }
+  }
+
+  const downloadAllAssets = async () => {
+    if (!extractionResult?.assets) return
+
+    const { logos, colors, fonts, illustrations } = extractionResult.assets
+    const domain = extractionResult.domain || 'assets'
+
+    // Create a text file with asset information
+    let assetsText = `Brand Assets from ${domain}\n`
+    assetsText += `Generated on ${new Date().toLocaleString()}\n\n`
+
+    if (logos.length > 0) {
+      assetsText += `LOGOS (${logos.length}):\n`
+      logos.forEach((logo, index) => {
+        assetsText += `${index + 1}. ${logo.alt || 'Logo'}: ${logo.url}\n`
+      })
+      assetsText += '\n'
+    }
+
+    if (colors.length > 0) {
+      assetsText += `COLORS (${colors.length}):\n`
+      colors.forEach((color, index) => {
+        assetsText += `${index + 1}. ${color.value}\n`
+      })
+      assetsText += '\n'
+    }
+
+    if (fonts.length > 0) {
+      assetsText += `FONTS (${fonts.length}):\n`
+      fonts.forEach((font, index) => {
+        assetsText += `${index + 1}. ${font.name}${font.url ? `\n   URL: ${font.url}` : ''}\n`
+        // Add CSS import suggestion for Google Fonts
+        if (font.url && font.url.includes('fonts.googleapis.com') && font.name) {
+          const fontFamily = font.name.replace(/\s+/g, '+')
+          assetsText += `   CSS Import: @import url('https://fonts.googleapis.com/css2?family=${fontFamily}&display=swap');\n`
+        }
+      })
+      assetsText += '\n'
+    }
+
+    if (illustrations.length > 0) {
+      assetsText += `ILLUSTRATIONS (${illustrations.length}):\n`
+      illustrations.forEach((illustration, index) => {
+        assetsText += `${index + 1}. ${illustration.alt || 'Illustration'}: ${illustration.url}\n`
+      })
+    }
+
+    // Download the assets list as a text file
+    const blob = new Blob([assetsText], { type: 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${domain}-brand-assets.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  }
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch (error) {
+      console.error('Copy to clipboard failed:', error)
+    }
+  }
+
+  const generateFontCSSImports = (fonts: any[]) => {
+    const googleFonts = fonts.filter(font => 
+      font.url && font.url.includes('fonts.googleapis.com') && font.name
+    )
+    
+    if (googleFonts.length === 0) return ''
+    
+    // Generate CSS imports
+    const imports = googleFonts.map(font => {
+      const fontFamily = font.name.replace(/\s+/g, '+')
+      return `@import url('https://fonts.googleapis.com/css2?family=${fontFamily}:wght@300;400;500;600;700&display=swap');`
+    }).join('\n')
+    
+    const fontFamilies = googleFonts.map(font => `'${font.name}', sans-serif`).join(', ')
+    
+    return `/* CSS Font Imports */\n${imports}\n\n/* Font Family Usage */\nfont-family: ${fontFamilies};`
   }
 
   const features = [
@@ -213,7 +317,7 @@ export const LandingPage: React.FC = () => {
                     <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                       <Download className="w-4 h-4 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h3 className="text-lg font-semibold text-green-800">
                         Assets extracted successfully!
                       </h3>
@@ -221,6 +325,13 @@ export const LandingPage: React.FC = () => {
                         Found {extractionResult.assets!.logos.length} logos, {extractionResult.assets!.colors.length} colors, {extractionResult.assets!.fonts.length} fonts, and {extractionResult.assets!.illustrations.length} illustrations from {extractionResult.domain}
                       </p>
                     </div>
+                    <button
+                      onClick={downloadAllAssets}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors"
+                    >
+                      <Archive className="w-4 h-4" />
+                      Download All
+                    </button>
                   </div>
                 </div>
 
@@ -247,18 +358,33 @@ export const LandingPage: React.FC = () => {
                                 target.style.display = 'none';
                               }}
                             />
-                            <p className="text-xs text-gray-600 truncate" title={logo.url}>
+                            <p className="text-xs text-gray-600 truncate mb-2" title={logo.url}>
                               {logo.alt || 'Logo'}
                             </p>
-                            <a 
-                              href={logo.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-1"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              Open
-                            </a>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => {
+                                  if (logo.url) {
+                                    const extension = logo.url.split('.').pop() || 'png'
+                                    downloadAsset(logo.url, `${logo.alt || 'logo'}-${index + 1}.${extension}`)
+                                  }
+                                }}
+                                disabled={!logo.url}
+                                className="flex-1 text-xs bg-primary-500 hover:bg-primary-600 disabled:bg-gray-400 text-white px-2 py-1 rounded flex items-center justify-center gap-1"
+                              >
+                                <Download className="w-3 h-3" />
+                                Download
+                              </button>
+                              <a 
+                                href={logo.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex-1 text-xs text-primary-500 hover:text-primary-700 border border-primary-500 hover:border-primary-700 px-2 py-1 rounded flex items-center justify-center gap-1"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                Open
+                              </a>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -268,17 +394,29 @@ export const LandingPage: React.FC = () => {
                   {/* Colors */}
                   {extractionResult.assets!.colors.length > 0 && (
                     <div className="bg-white border rounded-lg p-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <Palette className="w-5 h-5 text-primary-500" />
-                        <h4 className="text-lg font-semibold text-gray-900">
-                          Colors ({extractionResult.assets!.colors.length})
-                        </h4>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <Palette className="w-5 h-5 text-primary-500" />
+                          <h4 className="text-lg font-semibold text-gray-900">
+                            Colors ({extractionResult.assets!.colors.length})
+                          </h4>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const colorValues = extractionResult.assets!.colors.map(c => c.value).join('\n')
+                            copyToClipboard(colorValues)
+                          }}
+                          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded flex items-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" />
+                          Copy All
+                        </button>
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         {extractionResult.assets!.colors.slice(0, 12).map((color, index) => (
                           <div key={index} className="group cursor-pointer" onClick={() => {
                             if (color.value) {
-                              navigator.clipboard.writeText(color.value)
+                              copyToClipboard(color.value)
                             }
                           }}>
                             <div 
@@ -289,6 +427,9 @@ export const LandingPage: React.FC = () => {
                             <p className="text-xs text-gray-600 mt-1 text-center font-mono">
                               {color.value}
                             </p>
+                            <div className="text-center mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Copy className="w-3 h-3 text-gray-500 mx-auto" />
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -303,26 +444,76 @@ export const LandingPage: React.FC = () => {
                   {/* Fonts */}
                   {extractionResult.assets!.fonts.length > 0 && (
                     <div className="bg-white border rounded-lg p-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <Type className="w-5 h-5 text-primary-500" />
-                        <h4 className="text-lg font-semibold text-gray-900">
-                          Fonts ({extractionResult.assets!.fonts.length})
-                        </h4>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <Type className="w-5 h-5 text-primary-500" />
+                          <h4 className="text-lg font-semibold text-gray-900">
+                            Fonts ({extractionResult.assets!.fonts.length})
+                          </h4>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const fontLinks = extractionResult.assets!.fonts
+                                .filter(font => font.url)
+                                .map(font => `${font.name}: ${font.url}`)
+                                .join('\n')
+                              copyToClipboard(fontLinks)
+                            }}
+                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded flex items-center gap-1"
+                          >
+                            <Copy className="w-3 h-3" />
+                            Copy All Links
+                          </button>
+                          {extractionResult.assets!.fonts.some(font => 
+                            font.url && font.url.includes('fonts.googleapis.com')
+                          ) && (
+                            <button
+                              onClick={() => {
+                                const cssImports = generateFontCSSImports(extractionResult.assets!.fonts)
+                                copyToClipboard(cssImports)
+                              }}
+                              className="text-xs bg-primary-100 hover:bg-primary-200 text-primary-700 px-3 py-1 rounded flex items-center gap-1"
+                            >
+                              <Copy className="w-3 h-3" />
+                              Copy CSS Imports
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="space-y-3">
                         {extractionResult.assets!.fonts.slice(0, 8).map((font, index) => (
                           <div key={index} className="border rounded-lg p-3 hover:bg-gray-50">
-                            <p className="font-semibold text-gray-900">{font.name}</p>
+                            <div className="flex items-center justify-between">
+                              <p className="font-semibold text-gray-900 flex-1">{font.name}</p>
+                              <div className="flex gap-2 ml-3">
+                                {font.url && (
+                                  <>
+                                    <button
+                                      onClick={() => copyToClipboard(font.url!)}
+                                      className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded flex items-center gap-1"
+                                      title="Copy font URL"
+                                    >
+                                      <Copy className="w-3 h-3" />
+                                      Copy Link
+                                    </button>
+                                    <a 
+                                      href={font.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-primary-500 hover:text-primary-700 border border-primary-500 hover:border-primary-700 px-2 py-1 rounded flex items-center gap-1"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                      View Font
+                                    </a>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                             {font.url && (
-                              <a 
-                                href={font.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-1"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                View Font
-                              </a>
+                              <p className="text-xs text-gray-500 mt-1 font-mono truncate" title={font.url}>
+                                {font.url}
+                              </p>
                             )}
                           </div>
                         ))}
@@ -356,18 +547,33 @@ export const LandingPage: React.FC = () => {
                                 target.style.display = 'none';
                               }}
                             />
-                            <p className="text-xs text-gray-600 truncate" title={illustration.url}>
+                            <p className="text-xs text-gray-600 truncate mb-2" title={illustration.url}>
                               {illustration.alt || 'Illustration'}
                             </p>
-                            <a 
-                              href={illustration.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-1"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              Open
-                            </a>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => {
+                                  if (illustration.url) {
+                                    const extension = illustration.url.split('.').pop() || 'png'
+                                    downloadAsset(illustration.url, `${illustration.alt || 'illustration'}-${index + 1}.${extension}`)
+                                  }
+                                }}
+                                disabled={!illustration.url}
+                                className="flex-1 text-xs bg-primary-500 hover:bg-primary-600 disabled:bg-gray-400 text-white px-2 py-1 rounded flex items-center justify-center gap-1"
+                              >
+                                <Download className="w-3 h-3" />
+                                Download
+                              </button>
+                              <a 
+                                href={illustration.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex-1 text-xs text-primary-500 hover:text-primary-700 border border-primary-500 hover:border-primary-700 px-2 py-1 rounded flex items-center justify-center gap-1"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                Open
+                              </a>
+                            </div>
                           </div>
                         ))}
                       </div>

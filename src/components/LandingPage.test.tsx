@@ -261,5 +261,81 @@ describe('LandingPage', () => {
       // Demo sites should disappear
       expect(screen.queryByText(/try these demo sites/i)).not.toBeInTheDocument()
     })
+
+    it('should show download functionality when assets are extracted', async () => {
+      const user = userEvent.setup()
+      
+      // Mock successful asset extraction
+      mockExtractAssetsFunc.mockResolvedValueOnce({
+        success: true,
+        url: 'https://example.com',
+        domain: 'example.com',
+        error: null,
+        extractedAt: new Date().toISOString(),
+        assets: {
+          logos: [{ type: 'logo', url: 'https://example.com/logo.png', alt: 'Test Logo' }],
+          colors: [{ type: 'color', value: '#ff0000' }, { type: 'color', value: '#00ff00' }],
+          fonts: [{ type: 'font', name: 'Arial', url: 'https://fonts.google.com/arial' }],
+          illustrations: [{ type: 'illustration', url: 'https://example.com/image.jpg', alt: 'Test Image' }]
+        }
+      })
+
+      render(<LandingPage />)
+      
+      const input = screen.getByLabelText(/website url/i)
+      const button = screen.getByRole('button', { name: /extract assets/i })
+      
+      // Submit form
+      await user.type(input, 'https://example.com')
+      await user.click(button)
+      
+      // Wait for results
+      await waitFor(() => {
+        expect(screen.getByText(/assets extracted successfully/i)).toBeInTheDocument()
+      })
+      
+      // Check for download functionality
+      expect(screen.getByRole('button', { name: /download all/i })).toBeInTheDocument()
+      expect(screen.getByText('Copy All')).toBeInTheDocument() // Color copy all button
+      expect(screen.getByRole('button', { name: /copy all links/i })).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /download/i })).toHaveLength(3) // Download All + 2 individual downloads
+      expect(screen.getAllByRole('button', { name: /copy link/i })).toHaveLength(1) // Font copy link button
+    })
+
+    it('should show CSS import button for Google Fonts', async () => {
+      const user = userEvent.setup()
+      
+      // Mock successful asset extraction with Google Font
+      mockExtractAssetsFunc.mockResolvedValueOnce({
+        success: true,
+        url: 'https://example.com',
+        domain: 'example.com',
+        error: null,
+        extractedAt: new Date().toISOString(),
+        assets: {
+          logos: [],
+          colors: [],
+          fonts: [{ type: 'font', name: 'Inter', url: 'https://fonts.googleapis.com/css2?family=Inter' }],
+          illustrations: []
+        }
+      })
+
+      render(<LandingPage />)
+      
+      const input = screen.getByLabelText(/website url/i)
+      const button = screen.getByRole('button', { name: /extract assets/i })
+      
+      // Submit form
+      await user.type(input, 'https://example.com')
+      await user.click(button)
+      
+      // Wait for results
+      await waitFor(() => {
+        expect(screen.getByText(/assets extracted successfully/i)).toBeInTheDocument()
+      })
+      
+      // Check for CSS import button (only appears for Google Fonts)
+      expect(screen.getByRole('button', { name: /copy css imports/i })).toBeInTheDocument()
+    })
   })
 })
