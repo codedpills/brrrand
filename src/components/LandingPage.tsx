@@ -76,7 +76,7 @@ export const LandingPage: React.FC = () => {
         </div>
 
         {/* URL Input Form */}
-        <form onSubmit={handleSubmit} className="mb-12">
+        <form onSubmit={handleSubmit} noValidate className="mb-12">
           <div className="max-w-2xl mx-auto">
             <label htmlFor="website-url" className="sr-only">
               Website URL
@@ -95,7 +95,6 @@ export const LandingPage: React.FC = () => {
                       ? 'border-red-500 focus:border-red-500' 
                       : 'border-gray-200 focus:border-primary-500'
                   }`}
-                  required
                 />
                 {validationError && (
                   <p className="mt-2 text-sm text-red-600" role="alert">
