@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { Search, Palette, Type, Image, Download, Sparkles, ExternalLink, Copy } from 'lucide-react'
+import { Search, Palette, Type, Image, Download, Sparkles, ExternalLink } from 'lucide-react'
 import { validateUrl } from '../utils/urlValidation'
-import { extractAssets, type ExtractedAssets, type AssetExtractionResult } from '../utils/assetExtraction'
+import { extractAssets, type AssetExtractionResult } from '../utils/assetExtraction'
+import { mockExtractAssets, suggestedTestSites } from '../utils/mockAssetExtraction'
 
 export const LandingPage: React.FC = () => {
   const [url, setUrl] = useState('')
@@ -9,6 +10,12 @@ export const LandingPage: React.FC = () => {
   const [isValidating, setIsValidating] = useState(false)
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractionResult, setExtractionResult] = useState<AssetExtractionResult | null>(null)
+  
+  const defaultDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.VITE_DEMO_MODE === undefined
+  const [isDemoMode, setIsDemoMode] = useState(defaultDemoMode)
+  
+  // Show demo toggle in development or when explicitly enabled
+  const showDemoToggle = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_TOGGLE === 'true'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -16,7 +23,6 @@ export const LandingPage: React.FC = () => {
     setValidationError(null)
     setExtractionResult(null)
     
-    // Validate the URL
     const validation = validateUrl(url)
     
     if (!validation.isValid) {
@@ -31,8 +37,13 @@ export const LandingPage: React.FC = () => {
     try {
       console.log('Extracting assets from:', validation.normalizedUrl)
       console.log('Domain:', validation.domain)
+      console.log('Demo mode:', isDemoMode)
       
-      const result = await extractAssets(validation.normalizedUrl!)
+      // Use mock extraction in demo mode to avoid CORS
+      const result = isDemoMode 
+        ? await mockExtractAssets(validation.normalizedUrl!)
+        : await extractAssets(validation.normalizedUrl!)
+      
       setExtractionResult(result)
       
       if (!result.success) {
@@ -40,15 +51,24 @@ export const LandingPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Asset extraction failed:', error)
-      setValidationError('An unexpected error occurred. Please try again.')
+      if (error instanceof TypeError && error.message.includes('CORS')) {
+        setValidationError('CORS error: Enable Demo Mode to test asset extraction, or use a CORS proxy for real websites.')
+      } else {
+        setValidationError('An unexpected error occurred. Please try again.')
+      }
     } finally {
       setIsExtracting(false)
     }
   }
 
+  const handleDemoSiteClick = (siteUrl: string) => {
+    setUrl(siteUrl)
+    setValidationError(null)
+    setExtractionResult(null)
+  }
+
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUrl(e.target.value)
-    // Clear validation error when user starts typing
     if (validationError) {
       setValidationError(null)
     }
@@ -95,8 +115,31 @@ export const LandingPage: React.FC = () => {
         </div>
 
         {/* URL Input Form */}
-        <form onSubmit={handleSubmit} noValidate className="mb-12">
+        <form onSubmit={handleSubmit} noValidate className="mb-8">
           <div className="max-w-2xl mx-auto">
+            {/* Demo Mode Toggle - only show in development or when explicitly enabled */}
+            {showDemoToggle && (
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <span className="text-sm text-gray-600">Real Extraction</span>
+                <button
+                  type="button"
+                  data-testid="demo-mode-toggle"
+                  onClick={() => setIsDemoMode(!isDemoMode)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    isDemoMode ? 'bg-primary-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      isDemoMode ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className="text-sm text-gray-600">Demo Mode</span>
+                <span className="text-xs text-gray-500">(avoids CORS)</span>
+              </div>
+            )}
+
             <label htmlFor="website-url" className="sr-only">
               Website URL
             </label>
@@ -136,6 +179,29 @@ export const LandingPage: React.FC = () => {
             </div>
           </div>
         </form>
+
+        {/* Demo Site Suggestions - only show when demo mode is active */}
+        {isDemoMode && (
+          <div className="mb-8">
+            <p className="text-center text-gray-600 mb-4">
+              Try these demo sites with realistic brand assets:
+            </p>
+            <div className="flex flex-wrap justify-center gap-3 max-w-2xl mx-auto">
+              {suggestedTestSites.map((site, index) => {
+                const domain = new URL(site).hostname.replace('www.', '')
+                return (
+                  <button
+                    key={index}
+                    onClick={() => handleDemoSiteClick(site)}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+                  >
+                    {domain}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Results Section */}
         {extractionResult && (

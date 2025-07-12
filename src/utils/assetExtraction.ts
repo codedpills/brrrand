@@ -43,6 +43,7 @@ export async function extractAssets(url: string): Promise<AssetExtractionResult>
   try {
     // Fetch the website content
     const response = await fetch(url)
+    console.log("🚀 ~ extractAssets ~ response:", response)
     
     if (!response.ok) {
       return {
@@ -66,6 +67,7 @@ export async function extractAssets(url: string): Promise<AssetExtractionResult>
     }
     
   } catch (error) {
+    console.log("🚀 ~ extractAssets ~ error:", error)
     return {
       ...baseResult,
       success: false,
@@ -89,7 +91,7 @@ function extractDomain(url: string): string | null {
 /**
  * Parse HTML content and extract brand assets
  */
-async function parseHtmlForAssets(html: string, baseUrl: string): Promise<ExtractedAssets> {
+export async function parseHtmlForAssets(html: string, baseUrl: string): Promise<ExtractedAssets> {
   // Create a simple DOM-like parser using regex patterns
   // In a real implementation, you'd use a proper HTML parser like jsdom
   

@@ -1,69 +1,145 @@
-# React + TypeScript + Vite
+# Brrrand - Brand Asset Extraction
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React-based web application that extracts brand assets (logos, colors, fonts, illustrations) from websites.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Instant Asset Extraction**: Extract brand assets from any website URL
+- **Demo Mode**: Test with realistic mock data to avoid CORS issues
+- **Environment-Based Configuration**: Configurable via environment variables
+- **Comprehensive Testing**: Full test coverage with TDD approach
+- **Modern UI**: Built with React, TypeScript, and Tailwind CSS
 
-## Expanding the ESLint configuration
+## Environment Configuration
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Environment Variables
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- `VITE_DEMO_MODE`: Controls demo mode (true/false)
+- `VITE_SHOW_DEMO_TOGGLE`: Controls toggle visibility (true/false)
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+### Development Scripts
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Default development (uses .env.development)
+npm run dev
+
+# Force demo mode
+npm run dev:demo
+
+# Force real extraction mode
+npm run dev:real
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Build Scripts
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Default production build (uses .env.production)
+npm run build
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Build with demo mode enabled
+npm run build:demo
+
+# Build with real mode enabled
+npm run build:real
 ```
+
+## Environment Files
+
+- `.env.development` - Development defaults (demo mode enabled)
+- `.env.production` - Production defaults (real mode enabled)
+- `.env.local` - Local overrides (git-ignored)
+
+## Testing
+
+```bash
+# Run all tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with UI
+npm run test:ui
+```
+
+## Project Structure
+
+```
+src/
+├── components/
+│   ├── LandingPage.tsx        # Main UI component
+│   └── LandingPage.test.tsx   # Component tests
+├── utils/
+│   ├── urlValidation.ts       # URL validation utilities
+│   ├── urlValidation.test.ts  # URL validation tests
+│   ├── assetExtraction.ts     # Real asset extraction logic
+│   ├── assetExtraction.test.ts# Asset extraction tests
+│   ├── mockAssetExtraction.ts # Mock data for demo mode
+│   └── mockAssetExtraction.ts # Mock extraction tests
+└── test/
+    └── setup.ts               # Test configuration
+```
+
+## Why Demo Mode?
+
+Demo mode was created to solve CORS (Cross-Origin Resource Sharing) issues that occur when trying to fetch content from external websites in the browser. Demo mode provides:
+
+- Mock asset extraction with realistic data
+- Suggested test sites (Stripe, GitHub, OpenAI, etc.)
+- Full functionality testing without CORS restrictions
+- Consistent results for development and testing
+
+For production deployments that need real asset extraction, you would typically need a backend proxy or CORS-enabled setup.
+
+## Tech Stack
+
+- **Frontend**: React 19, TypeScript, Tailwind CSS
+- **Build Tool**: Vite 6
+- **Testing**: Vitest, Testing Library
+- **Routing**: TanStack Router (configured)
+- **Icons**: Lucide React
+
+## Getting Started
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Start development server:
+   ```bash
+   npm run dev
+   ```
+
+3. Open browser to `http://localhost:5173`
+
+4. Test with demo mode (default) or toggle to real mode
+
+## Configuration Examples
+
+### Local Development with Real Mode
+Create `.env.local`:
+```
+VITE_DEMO_MODE=false
+VITE_SHOW_DEMO_TOGGLE=true
+```
+
+### Demo Deployment
+```bash
+npm run build:demo
+```
+
+### Production with Real Extraction
+```bash
+npm run build:real
+```
+
+## Development
+
+The application is fully configured with environment-based demo mode:
+
+- **Development**: Demo mode enabled by default to avoid CORS issues
+- **Production**: Real mode enabled by default for actual asset extraction
+- **Testing**: Comprehensive test suite with 41 passing tests
+
+For detailed environment configuration, see [ENV_CONFIG.md](./ENV_CONFIG.md).

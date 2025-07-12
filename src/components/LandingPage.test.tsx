@@ -3,17 +3,22 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LandingPage } from './LandingPage'
 
-// Mock the asset extraction module
+// Mock both asset extraction modules
 vi.mock('../utils/assetExtraction', () => ({
   extractAssets: vi.fn()
 }))
 
-import { extractAssets } from '../utils/assetExtraction'
-const mockExtractAssets = vi.mocked(extractAssets)
+vi.mock('../utils/mockAssetExtraction', () => ({
+  mockExtractAssets: vi.fn(),
+  suggestedTestSites: ['https://stripe.com', 'https://github.com']
+}))
+
+import { mockExtractAssets } from '../utils/mockAssetExtraction'
+const mockExtractAssetsFunc = vi.mocked(mockExtractAssets)
 
 describe('LandingPage', () => {
   beforeEach(() => {
-    mockExtractAssets.mockClear()
+    mockExtractAssetsFunc.mockClear()
   })
 
   it('should render the hero section with main heading', () => {
@@ -107,7 +112,7 @@ describe('LandingPage', () => {
     const user = userEvent.setup()
     
     // Mock successful asset extraction for this test
-    mockExtractAssets.mockResolvedValueOnce({
+    mockExtractAssetsFunc.mockResolvedValueOnce({
       success: true,
       url: 'https://example.com',
       domain: 'example.com',
@@ -152,7 +157,7 @@ describe('LandingPage', () => {
     const user = userEvent.setup()
     
     // Mock successful asset extraction
-    mockExtractAssets.mockResolvedValueOnce({
+    mockExtractAssetsFunc.mockResolvedValueOnce({
       success: true,
       url: 'https://example.com',
       domain: 'example.com',
@@ -197,14 +202,14 @@ describe('LandingPage', () => {
     expect(screen.getByText(/illustrations \(1\)/i)).toBeInTheDocument()
     
     // Verify extractAssets was called with normalized URL
-    expect(mockExtractAssets).toHaveBeenCalledWith('https://example.com')
+    expect(mockExtractAssetsFunc).toHaveBeenCalledWith('https://example.com')
   })
 
   it('should display error message when asset extraction fails', async () => {
     const user = userEvent.setup()
     
     // Mock failed asset extraction
-    mockExtractAssets.mockResolvedValueOnce({
+    mockExtractAssetsFunc.mockResolvedValueOnce({
       success: false,
       url: 'https://unreachable.com',
       domain: 'unreachable.com',
@@ -229,5 +234,32 @@ describe('LandingPage', () => {
     
     // Check for the error message in the results section (not validation error)
     expect(screen.getAllByText(/failed to fetch website content/i)).toHaveLength(2) // One in validation, one in results
+  })
+
+  describe('Environment Variable Configuration', () => {
+    it('should show toggle and demo sites in development mode', () => {
+      // For now, just test that the component renders with default dev settings
+      render(<LandingPage />)
+      
+      // Should show demo toggle and sites (default behavior)
+      expect(screen.getByText('Demo Mode')).toBeInTheDocument()
+      expect(screen.getByText(/try these demo sites/i)).toBeInTheDocument()
+    })
+
+    it('should allow toggling between demo and real mode when toggle is shown', async () => {
+      const user = userEvent.setup()
+
+      render(<LandingPage />)
+      
+      // Should start in demo mode (default)
+      expect(screen.getByText(/try these demo sites/i)).toBeInTheDocument()
+      
+      // Click toggle to switch to real mode
+      const toggleButton = screen.getByTestId('demo-mode-toggle')
+      await user.click(toggleButton)
+      
+      // Demo sites should disappear
+      expect(screen.queryByText(/try these demo sites/i)).not.toBeInTheDocument()
+    })
   })
 })
