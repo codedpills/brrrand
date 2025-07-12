@@ -1,16 +1,20 @@
 import React, { useState } from 'react'
-import { Search, Palette, Type, Image, Download, Sparkles } from 'lucide-react'
+import { Search, Palette, Type, Image, Download, Sparkles, ExternalLink, Copy } from 'lucide-react'
 import { validateUrl } from '../utils/urlValidation'
+import { extractAssets, type ExtractedAssets, type AssetExtractionResult } from '../utils/assetExtraction'
 
 export const LandingPage: React.FC = () => {
   const [url, setUrl] = useState('')
   const [validationError, setValidationError] = useState<string | null>(null)
   const [isValidating, setIsValidating] = useState(false)
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [extractionResult, setExtractionResult] = useState<AssetExtractionResult | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsValidating(true)
     setValidationError(null)
+    setExtractionResult(null)
     
     // Validate the URL
     const validation = validateUrl(url)
@@ -21,10 +25,25 @@ export const LandingPage: React.FC = () => {
       return
     }
     
-    // TODO: Implement asset extraction with validated URL
-    console.log('Extracting assets from:', validation.normalizedUrl)
-    console.log('Domain:', validation.domain)
     setIsValidating(false)
+    setIsExtracting(true)
+    
+    try {
+      console.log('Extracting assets from:', validation.normalizedUrl)
+      console.log('Domain:', validation.domain)
+      
+      const result = await extractAssets(validation.normalizedUrl!)
+      setExtractionResult(result)
+      
+      if (!result.success) {
+        setValidationError(result.error || 'Failed to extract assets')
+      }
+    } catch (error) {
+      console.error('Asset extraction failed:', error)
+      setValidationError('An unexpected error occurred. Please try again.')
+    } finally {
+      setIsExtracting(false)
+    }
   }
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,19 +123,218 @@ export const LandingPage: React.FC = () => {
               </div>
               <button
                 type="submit"
-                disabled={isValidating}
+                disabled={isValidating || isExtracting}
                 className={`px-8 py-4 rounded-lg font-semibold text-lg transition-colors flex items-center justify-center gap-2 ${
-                  isValidating
+                  isValidating || isExtracting
                     ? 'bg-gray-400 cursor-not-allowed text-white'
                     : 'bg-primary-500 hover:bg-primary-600 text-white'
                 }`}
               >
                 <Download className="w-5 h-5" />
-                {isValidating ? 'Validating...' : 'Extract Assets'}
+                {isValidating ? 'Validating...' : isExtracting ? 'Extracting...' : 'Extract Assets'}
               </button>
             </div>
           </div>
         </form>
+
+        {/* Results Section */}
+        {extractionResult && (
+          <div className="mb-12">
+            {extractionResult.success ? (
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                      <Download className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-green-800">
+                        Assets extracted successfully!
+                      </h3>
+                      <p className="text-green-700">
+                        Found {extractionResult.assets!.logos.length} logos, {extractionResult.assets!.colors.length} colors, {extractionResult.assets!.fonts.length} fonts, and {extractionResult.assets!.illustrations.length} illustrations from {extractionResult.domain}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Asset Categories */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Logos */}
+                  {extractionResult.assets!.logos.length > 0 && (
+                    <div className="bg-white border rounded-lg p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <Image className="w-5 h-5 text-primary-500" />
+                        <h4 className="text-lg font-semibold text-gray-900">
+                          Logos ({extractionResult.assets!.logos.length})
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        {extractionResult.assets!.logos.map((logo, index) => (
+                          <div key={index} className="border rounded-lg p-4 hover:bg-gray-50">
+                            <img 
+                              src={logo.url} 
+                              alt={logo.alt || 'Logo'} 
+                              className="w-full h-16 object-contain mb-2"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                            <p className="text-xs text-gray-600 truncate" title={logo.url}>
+                              {logo.alt || 'Logo'}
+                            </p>
+                            <a 
+                              href={logo.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-1"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Open
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Colors */}
+                  {extractionResult.assets!.colors.length > 0 && (
+                    <div className="bg-white border rounded-lg p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <Palette className="w-5 h-5 text-primary-500" />
+                        <h4 className="text-lg font-semibold text-gray-900">
+                          Colors ({extractionResult.assets!.colors.length})
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        {extractionResult.assets!.colors.slice(0, 12).map((color, index) => (
+                          <div key={index} className="group cursor-pointer" onClick={() => {
+                            if (color.value) {
+                              navigator.clipboard.writeText(color.value)
+                            }
+                          }}>
+                            <div 
+                              className="w-full h-12 rounded-lg border-2 border-gray-200 group-hover:border-gray-300 transition-colors"
+                              style={{ backgroundColor: color.value }}
+                              title={`Click to copy ${color.value}`}
+                            />
+                            <p className="text-xs text-gray-600 mt-1 text-center font-mono">
+                              {color.value}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      {extractionResult.assets!.colors.length > 12 && (
+                        <p className="text-sm text-gray-500 mt-4 text-center">
+                          +{extractionResult.assets!.colors.length - 12} more colors
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fonts */}
+                  {extractionResult.assets!.fonts.length > 0 && (
+                    <div className="bg-white border rounded-lg p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <Type className="w-5 h-5 text-primary-500" />
+                        <h4 className="text-lg font-semibold text-gray-900">
+                          Fonts ({extractionResult.assets!.fonts.length})
+                        </h4>
+                      </div>
+                      <div className="space-y-3">
+                        {extractionResult.assets!.fonts.slice(0, 8).map((font, index) => (
+                          <div key={index} className="border rounded-lg p-3 hover:bg-gray-50">
+                            <p className="font-semibold text-gray-900">{font.name}</p>
+                            {font.url && (
+                              <a 
+                                href={font.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-1"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                View Font
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {extractionResult.assets!.fonts.length > 8 && (
+                        <p className="text-sm text-gray-500 mt-4 text-center">
+                          +{extractionResult.assets!.fonts.length - 8} more fonts
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Illustrations */}
+                  {extractionResult.assets!.illustrations.length > 0 && (
+                    <div className="bg-white border rounded-lg p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <Sparkles className="w-5 h-5 text-primary-500" />
+                        <h4 className="text-lg font-semibold text-gray-900">
+                          Illustrations ({extractionResult.assets!.illustrations.length})
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        {extractionResult.assets!.illustrations.slice(0, 6).map((illustration, index) => (
+                          <div key={index} className="border rounded-lg p-4 hover:bg-gray-50">
+                            <img 
+                              src={illustration.url} 
+                              alt={illustration.alt || 'Illustration'} 
+                              className="w-full h-20 object-cover rounded mb-2"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                            <p className="text-xs text-gray-600 truncate" title={illustration.url}>
+                              {illustration.alt || 'Illustration'}
+                            </p>
+                            <a 
+                              href={illustration.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-1"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Open
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                      {extractionResult.assets!.illustrations.length > 6 && (
+                        <p className="text-sm text-gray-500 mt-4 text-center">
+                          +{extractionResult.assets!.illustrations.length - 6} more illustrations
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-2xl mx-auto">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm">!</span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-red-800">
+                        Unable to extract assets
+                      </h3>
+                      <p className="text-red-700">
+                        {extractionResult.error}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
