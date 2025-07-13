@@ -3,7 +3,6 @@
  * Handles both static asset serving and API routes
  */
 /// <reference types="@cloudflare/workers-types" />
-import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
 import { isValidUrl, sanitizeContent } from './utils/serverUtils';
 import { checkRateLimit } from './utils/rateLimiter';
 
@@ -231,67 +230,99 @@ async function handleProxy(
 }
 
 /**
- * Handle static assets - simple fallback approach
+ * Handle static assets - direct from environment
  */
 async function handleStaticAssets(
   request: Request, 
   env: Env, 
-  ctx: ExecutionContext
+  _ctx: ExecutionContext
 ): Promise<Response> {
   const url = new URL(request.url);
+  let assetPath = url.pathname;
   
-  // Try to get asset from KV
+  // Default to index.html for root path
+  if (assetPath === '/') {
+    assetPath = '/index.html';
+  }
+  
+  // Remove leading slash for KV lookup
+  const assetKey = assetPath.startsWith('/') ? assetPath.slice(1) : assetPath;
+  
   try {
-    return await getAssetFromKV(
-      {
-        request,
-        waitUntil: ctx.waitUntil.bind(ctx),
-      },
-      {
-        ASSET_NAMESPACE: env.__STATIC_CONTENT,
-        cacheControl: {
-          browserTTL: 86400, // 1 day
-          edgeTTL: 86400 * 7, // 7 days
-        },
-      }
-    );
-  } catch (e) {
-    console.log('Asset not found:', url.pathname, 'Error:', e);
+    // Try to get the asset from the KV store
+    const asset = await env.__STATIC_CONTENT.get(assetKey);
     
-    // For SPA routing, return index.html for non-API routes
-    if (!url.pathname.startsWith('/api/') && !url.pathname.includes('.')) {
-      try {
-        const indexRequest = new Request(`${url.origin}/index.html`, {
-          method: request.method,
-          headers: request.headers,
-        });
-        
-        const response = await getAssetFromKV(
-          {
-            request: indexRequest,
-            waitUntil: ctx.waitUntil.bind(ctx),
-          },
-          {
-            ASSET_NAMESPACE: env.__STATIC_CONTENT,
-          }
-        );
-        
-        // Return index.html but with the original URL for client-side routing
-        return new Response(response.body, {
+    if (asset) {
+      // Determine content type
+      const contentType = getContentType(assetPath);
+      
+      return new Response(asset, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400', // 1 day cache
+        },
+      });
+    }
+  } catch (e) {
+    console.error('Error fetching asset:', assetKey, e);
+  }
+  
+  // For SPA routing, return index.html for non-API routes and non-asset requests
+  if (!url.pathname.startsWith('/api/') && !url.pathname.includes('.')) {
+    try {
+      const indexHtml = await env.__STATIC_CONTENT.get('index.html');
+      if (indexHtml) {
+        return new Response(indexHtml, {
           status: 200,
           headers: {
-            ...Object.fromEntries(response.headers.entries()),
             'Content-Type': 'text/html',
+            'Cache-Control': 'public, max-age=300', // 5 minutes for SPA routes
           },
         });
-      } catch (indexError) {
-        console.error('Index.html not found:', indexError);
       }
+    } catch (e) {
+      console.error('Error fetching index.html:', e);
     }
-    
-    return new Response(`Asset not found: ${url.pathname}`, { 
-      status: 404,
-      headers: { 'Content-Type': 'text/plain' }
-    });
+  }
+  
+  return new Response(`Asset not found: ${assetPath}`, { 
+    status: 404,
+    headers: { 'Content-Type': 'text/plain' }
+  });
+}
+
+/**
+ * Get content type based on file extension
+ */
+function getContentType(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase();
+  
+  switch (ext) {
+    case 'html':
+      return 'text/html';
+    case 'css':
+      return 'text/css';
+    case 'js':
+      return 'application/javascript';
+    case 'json':
+      return 'application/json';
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'gif':
+      return 'image/gif';
+    case 'svg':
+      return 'image/svg+xml';
+    case 'ico':
+      return 'image/x-icon';
+    case 'woff':
+      return 'font/woff';
+    case 'woff2':
+      return 'font/woff2';
+    default:
+      return 'text/plain';
   }
 }
