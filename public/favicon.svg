@@ -1,0 +1,13 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="16" fill="#EC4899"/>
+  
+  <!-- Letter B -->
+  <path d="M10 8h6c1.5 0 2.8 0.6 3.8 1.6s1.2 2.3 1.2 3.8c0 1-0.3 1.9-0.8 2.6 0.8 0.8 1.3 1.9 1.3 3.1 0 1.5-0.6 2.8-1.6 3.8s-2.3 1.1-3.8 1.1H10V8z" fill="white"/>
+  <path d="M13 11v3h3c0.5 0 1-0.2 1.4-0.6s0.6-0.9 0.6-1.4-0.2-1-0.6-1.4S16.5 11 16 11h-3z" fill="#EC4899"/>
+  <path d="M13 17v4h4c0.5 0 1-0.2 1.4-0.6s0.6-0.9 0.6-1.4-0.2-1-0.6-1.4S17.5 17 17 17h-4z" fill="#EC4899"/>
+  
+  <!-- Small brand dots for visual interest -->
+  <circle cx="24" cy="8" r="1.5" fill="white" opacity="0.8"/>
+  <circle cx="8" cy="24" r="1" fill="white" opacity="0.6"/>
+</svg>
