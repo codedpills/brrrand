@@ -3,7 +3,7 @@
  * Handles both static asset serving and API routes
  */
 /// <reference types="@cloudflare/workers-types" />
-import { getAssetFromKV, mapRequestToAsset } from '@cloudflare/kv-asset-handler';
+import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
 import { isValidUrl, sanitizeContent } from './utils/serverUtils';
 import { checkRateLimit } from './utils/rateLimiter';
 
@@ -231,15 +231,17 @@ async function handleProxy(
 }
 
 /**
- * Handle static assets using KV Asset Handler
+ * Handle static assets - simple fallback approach
  */
 async function handleStaticAssets(
   request: Request, 
   env: Env, 
   ctx: ExecutionContext
 ): Promise<Response> {
+  const url = new URL(request.url);
+  
+  // Try to get asset from KV
   try {
-    // Serve static assets from KV storage
     return await getAssetFromKV(
       {
         request,
@@ -247,8 +249,6 @@ async function handleStaticAssets(
       },
       {
         ASSET_NAMESPACE: env.__STATIC_CONTENT,
-        ASSET_MANIFEST: __STATIC_CONTENT_MANIFEST,
-        mapRequestToAsset: mapRequestToAsset,
         cacheControl: {
           browserTTL: 86400, // 1 day
           edgeTTL: 86400 * 7, // 7 days
@@ -256,21 +256,42 @@ async function handleStaticAssets(
       }
     );
   } catch (e) {
-    // If asset not found, return index.html for SPA routing
-    try {
-      const indexRequest = new Request(`${new URL(request.url).origin}/index.html`, request);
-      return await getAssetFromKV(
-        {
-          request: indexRequest,
-          waitUntil: ctx.waitUntil.bind(ctx),
-        },
-        {
-          ASSET_NAMESPACE: env.__STATIC_CONTENT,
-          ASSET_MANIFEST: __STATIC_CONTENT_MANIFEST,
-        }
-      );
-    } catch (indexError) {
-      return new Response('Not Found', { status: 404 });
+    console.log('Asset not found:', url.pathname, 'Error:', e);
+    
+    // For SPA routing, return index.html for non-API routes
+    if (!url.pathname.startsWith('/api/') && !url.pathname.includes('.')) {
+      try {
+        const indexRequest = new Request(`${url.origin}/index.html`, {
+          method: request.method,
+          headers: request.headers,
+        });
+        
+        const response = await getAssetFromKV(
+          {
+            request: indexRequest,
+            waitUntil: ctx.waitUntil.bind(ctx),
+          },
+          {
+            ASSET_NAMESPACE: env.__STATIC_CONTENT,
+          }
+        );
+        
+        // Return index.html but with the original URL for client-side routing
+        return new Response(response.body, {
+          status: 200,
+          headers: {
+            ...Object.fromEntries(response.headers.entries()),
+            'Content-Type': 'text/html',
+          },
+        });
+      } catch (indexError) {
+        console.error('Index.html not found:', indexError);
+      }
     }
+    
+    return new Response(`Asset not found: ${url.pathname}`, { 
+      status: 404,
+      headers: { 'Content-Type': 'text/plain' }
+    });
   }
 }
