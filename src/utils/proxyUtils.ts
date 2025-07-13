@@ -106,7 +106,7 @@ export async function isProxyAvailable(): Promise<boolean> {
     });
     
     if (response.ok) {
-      const data = await response.json();
+      const data = await response.json() as { status?: string };
       return data.status === 'ok';
     }
     

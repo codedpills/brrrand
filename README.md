@@ -154,6 +154,26 @@ npm run build:demo
 npm run build:real
 ```
 
+## Deployment
+
+### Cloudflare Workers (Recommended)
+Deploy to Cloudflare Workers for the best performance and free hosting:
+
+```bash
+# Quick deployment
+./deploy.sh
+
+# Manual deployment
+npm run build
+npx wrangler deploy
+```
+
+For detailed setup instructions, see [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md).
+
+### Alternative Deployments
+- **Cloudflare Pages**: See [DEPLOYMENT.md](./DEPLOYMENT.md)
+- **Traditional Server**: Node.js/Express deployment options in [DEPLOYMENT.md](./DEPLOYMENT.md)
+
 ## Development
 
 The application is fully configured with environment-based demo mode:
