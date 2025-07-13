@@ -18,6 +18,11 @@ dist-ssr
 .idea
 .DS_Store
 *.suo
+
+# Environment files with sensitive data
+.env.local
+.env.production.local
+wrangler.toml.local
 *.ntvs*
 *.njsproj
 *.sln
