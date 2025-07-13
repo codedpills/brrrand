@@ -82,7 +82,7 @@ This guide walks you through deploying the Brrrand app to Cloudflare Pages.
 ## Step 4: Configure Custom Domain (Optional)
 
 1. In your Cloudflare Pages dashboard, go to **Custom domains**
-2. Add your domain (e.g., `brrrand.com`)
+2. Add your domain: `brrrand.it.com`
 3. Update DNS records as instructed
 4. Wait for SSL certificate provisioning
 

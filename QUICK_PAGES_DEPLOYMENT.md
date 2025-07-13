@@ -74,11 +74,11 @@ VITE_GTM_CONTAINER_ID = your-actual-gtm-id
 
 ### 7. Test Your Deployment
 
-Your app will be available at: `https://brrrand.pages.dev` (or similar)
+Your app will be available at: `https://brrrand.it.com` (with custom domain) or `https://brrrand.pages.dev` (Cloudflare subdomain)
 
 **Test these endpoints**:
-- **Homepage**: `https://brrrand.pages.dev`
-- **Health Check**: `https://brrrand.pages.dev/api/health`
+- **Homepage**: `https://brrrand.it.com`
+- **Health Check**: `https://brrrand.it.com/api/health`
 - **Asset Extraction**: Try extracting assets from a website
 
 ## What Gets Deployed
@@ -105,7 +105,7 @@ Your app will be available at: `https://brrrand.pages.dev` (or similar)
 ### Add Your Domain
 1. In your Pages project, go to **Custom domains**
 2. Click **Set up a custom domain**
-3. Enter your domain (e.g., `brrrand.com`)
+3. Enter your domain: `brrrand.it.com`
 4. Follow DNS configuration instructions
 5. SSL certificate will be automatically provisioned
 

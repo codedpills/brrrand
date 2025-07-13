@@ -15,7 +15,7 @@ setupSecurityMiddleware(app);
 
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.ALLOWED_ORIGIN || 'https://brrrand.com']
+    ? [process.env.ALLOWED_ORIGIN || 'https://brrrand.it.com']
     : '*',
   methods: ['GET'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -73,7 +73,7 @@ app.get('/api/proxy', async (req: Request, res: Response) => {
     console.log(`[${new Date().toISOString()}] Proxying request to: ${url}`);
     const response = await axios.get(url, {
       headers: {
-        'User-Agent': 'Brrrand Asset Extractor/1.0 (https://brrrand.com)',
+        'User-Agent': 'Brrrand Asset Extractor/1.0 (https://brrrand.it.com)',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
       },

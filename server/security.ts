@@ -10,7 +10,7 @@ export function setupSecurityMiddleware(app: Express): void {
           styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", "data:", "blob:"],
           connectSrc: ["'self'", process.env.NODE_ENV === 'production' 
-            ? process.env.ALLOWED_ORIGIN || 'https://brrrand.com'
+            ? process.env.ALLOWED_ORIGIN || 'https://brrrand.it.com'
             : '*'
           ],
         },

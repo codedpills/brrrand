@@ -19,7 +19,7 @@ A React-based web application that extracts brand assets (logos, colors, fonts, 
 - `VITE_SHOW_DEMO_TOGGLE`: Controls toggle visibility (true/false)
 - `VITE_USE_PROXY`: Controls whether to use the proxy in development (true/false)
 - `PORT`: The port on which the proxy server will run (default: 5000)
-- `ALLOWED_ORIGIN`: In production, restricts CORS to this origin (default: https://brrrand.com)
+- `ALLOWED_ORIGIN`: In production, restricts CORS to this origin (default: https://brrrand.it.com)
 
 ### Development Scripts
 

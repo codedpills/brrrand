@@ -82,7 +82,7 @@ The server can be configured using environment variables:
 
 - `PORT`: The port on which the server will listen (default: 5000)
 - `NODE_ENV`: Set to 'production' for production mode
-- `ALLOWED_ORIGIN`: In production, restricts CORS to this origin (default: https://brrrand.com)
+- `ALLOWED_ORIGIN`: In production, restricts CORS to this origin (default: https://brrrand.it.com)
 
 ## Files
 

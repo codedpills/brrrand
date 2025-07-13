@@ -119,7 +119,7 @@ export function extractDomain(url: string): string | null {
  * Creates a user agent string for proxy requests
  */
 export function createUserAgent(): string {
-  return 'Brrrand Asset Extractor/1.0 (https://brrrand.com)';
+  return 'Brrrand Asset Extractor/1.0 (https://brrrand.it.com)';
 }
 
 /**
