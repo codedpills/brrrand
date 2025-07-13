@@ -1,0 +1,14 @@
+name = "brrrand"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "dist"
+
+[build]
+command = "npm run build"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+[vars]
+ENVIRONMENT = "production"
