@@ -156,22 +156,25 @@ npm run build:real
 
 ## Deployment
 
-### Cloudflare Workers (Recommended)
-Deploy to Cloudflare Workers for the best performance and free hosting:
+### Cloudflare Pages (Recommended)
+Deploy to Cloudflare Pages for reliable static site hosting with serverless functions:
 
 ```bash
-# Quick deployment
-./deploy.sh
-
-# Manual deployment
+# Build for deployment
 npm run build
-npx wrangler deploy
 ```
 
-For detailed setup instructions, see [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md).
+Then follow the step-by-step guide in [QUICK_PAGES_DEPLOYMENT.md](./QUICK_PAGES_DEPLOYMENT.md).
+
+**Quick Setup:**
+1. Go to [Cloudflare Pages](https://dash.cloudflare.com/pages)
+2. Connect your GitHub repository
+3. Use build command: `npm run build`
+4. Set build output directory: `dist`
+5. Add environment variables as specified in the guide
 
 ### Alternative Deployments
-- **Cloudflare Pages**: See [DEPLOYMENT.md](./DEPLOYMENT.md)
+- **Cloudflare Workers**: See [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md)
 - **Traditional Server**: Node.js/Express deployment options in [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ## Development
