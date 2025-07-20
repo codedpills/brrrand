@@ -186,10 +186,19 @@ function extractColorsSecurely($: cheerio.CheerioAPI, html: string): BrandAsset[
     extractColorsFromText(style, colors, colorSet);
   });
   
-  // Process style tags
+  // Process style tags with enhanced extraction
   $('style').each((_, el) => {
     const styleContent = $(el).html() || '';
     extractColorsFromText(styleContent, colors, colorSet);
+    
+    // Also use the enhanced CSS content extraction for style tags
+    const cssColors = extractColorsFromCssContent(styleContent);
+    cssColors.forEach(color => {
+      if (!colorSet.has(color.value!)) {
+        colorSet.add(color.value!);
+        colors.push(color);
+      }
+    });
   });
   
   // Process any remaining CSS in the HTML (like in attributes)
@@ -555,22 +564,25 @@ async function extractAssetsFromCssLinks($: cheerio.CheerioAPI, baseUrl: string)
     try {
       console.log('Fetching CSS for asset extraction:', cssUrl);
       
-      // Use our proxy if available, otherwise direct fetch
+      // Use our proxy for CSS files (both development and production)
       let cssContent: string;
-      if (typeof window !== 'undefined' && window.location?.hostname === 'brrrand.it.com') {
-        // In production, use proxy
+      try {
+        // Always use the proxy for CSS files to avoid CORS issues
         const proxyUrl = `/api/proxy?url=${encodeURIComponent(cssUrl)}`;
-        const response = await fetch(proxyUrl);
+        const response = await fetch(proxyUrl, {
+          headers: {
+            'X-Purpose': 'asset-extraction'
+          }
+        });
         if (response.ok) {
           cssContent = await response.text();
         } else {
+          console.warn('Proxy failed for CSS, skipping:', cssUrl, response.status);
           continue;
         }
-      } else {
-        // For development or direct access
-        const response = await fetch(cssUrl);
-        if (!response.ok) continue;
-        cssContent = await response.text();
+      } catch (proxyError) {
+        console.warn('Proxy error for CSS, skipping:', cssUrl, proxyError);
+        continue;
       }
 
       // Extract colors from CSS
@@ -597,6 +609,7 @@ function extractColorsFromCssContent(cssContent: string): BrandAsset[] {
   const colors: BrandAsset[] = [];
   const colorSet = new Set<string>();
 
+  // Standard color patterns
   const colorPatterns = [
     /#[0-9a-f]{6}|#[0-9a-f]{3}/gi, // Hex colors
     /rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/gi, // RGB colors
@@ -604,6 +617,54 @@ function extractColorsFromCssContent(cssContent: string): BrandAsset[] {
     /hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)/gi // HSL colors
   ];
 
+  // CSS custom property definitions (--color: value)
+  const customPropertyPattern = /--[a-zA-Z0-9_-]+\s*:\s*([^;]+)/gi;
+  const customPropertyMatches = cssContent.match(customPropertyPattern) || [];
+  
+  customPropertyMatches.forEach(match => {
+    // Extract the value part after the colon
+    const valueMatch = match.match(/:\s*([^;]+)/);
+    if (valueMatch) {
+      const value = valueMatch[1].trim();
+      // Check if the value is a color
+      colorPatterns.forEach(pattern => {
+        pattern.lastIndex = 0; // Reset regex
+        const colorMatch = pattern.exec(value);
+        if (colorMatch) {
+          const normalizedColor = normalizeColor(colorMatch[0]);
+          if (normalizedColor && !colorSet.has(normalizedColor)) {
+            colorSet.add(normalizedColor);
+            colors.push({
+              type: 'color',
+              value: normalizedColor,
+              source: 'css'
+            });
+          }
+        }
+      });
+
+      // Check for RGB values in comma-separated format (often used with CSS custom properties)
+      const rgbTripletMatch = value.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+      if (rgbTripletMatch) {
+        const r = parseInt(rgbTripletMatch[1]);
+        const g = parseInt(rgbTripletMatch[2]);
+        const b = parseInt(rgbTripletMatch[3]);
+        if (r <= 255 && g <= 255 && b <= 255) {
+          const hexColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+          if (!colorSet.has(hexColor)) {
+            colorSet.add(hexColor);
+            colors.push({
+              type: 'color',
+              value: hexColor,
+              source: 'css'
+            });
+          }
+        }
+      }
+    }
+  });
+
+  // Standard color extraction
   colorPatterns.forEach(pattern => {
     const matches = cssContent.match(pattern) || [];
     matches.forEach(match => {
@@ -659,6 +720,45 @@ function extractFontsFromCssContent(cssContent: string): BrandAsset[] {
         });
       }
     });
+  });
+
+  // Also check for font shorthand properties
+  const fontShorthandPattern = /font\s*:\s*([^;}]+)/gi;
+  const shorthandMatches = cssContent.match(fontShorthandPattern) || [];
+
+  shorthandMatches.forEach(match => {
+    // Font shorthand: [font-style] [font-variant] [font-weight] [font-size]/[line-height] font-family
+    const fontValue = match.replace(/font\s*:\s*/i, '').trim();
+    
+    // Try to extract the font family from the end of the shorthand
+    const parts = fontValue.split(/\s+/);
+    if (parts.length >= 2) {
+      // Take the last parts as potential font family
+      const potentialFontFamily = parts.slice(-2).join(' ');
+      
+      const fontNames = potentialFontFamily.split(',').map(font => 
+        font.trim()
+          .replace(/['"]/g, '')
+          .replace(/!important/gi, '')
+          .trim()
+      ).filter(font => 
+        font && 
+        font.length > 0 &&
+        !['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'inherit', 'initial', 'unset'].includes(font.toLowerCase()) &&
+        !/^\d/.test(font) // Exclude values that start with numbers (likely sizes)
+      );
+
+      fontNames.forEach(fontName => {
+        if (!fontSet.has(fontName)) {
+          fontSet.add(fontName);
+          fonts.push({
+            type: 'font',
+            name: fontName,
+            source: 'css'
+          });
+        }
+      });
+    }
   });
 
   return fonts;
