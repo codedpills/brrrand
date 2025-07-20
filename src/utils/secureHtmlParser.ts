@@ -33,8 +33,26 @@ export async function parseHtmlSecurely(html: string, baseUrl: string): Promise<
       xml: false
     });
     
-    // Extract logos
-    assets.logos = extractLogosSecurely($, validBaseUrl);
+  // Extract logos
+  assets.logos = extractLogosSecurely($, validBaseUrl);
+  
+  // Add common favicon if not already present
+  const hasFavicon = assets.logos.some(logo => 
+    logo.url?.includes('favicon.ico') || logo.url?.includes('favicon')
+  );
+  if (!hasFavicon) {
+    try {
+      const faviconUrl = new URL('/favicon.ico', validBaseUrl);
+      assets.logos.push({
+        type: 'logo',
+        url: faviconUrl.href,
+        source: 'html',
+        alt: 'Default favicon'
+      });
+    } catch (e) {
+      // Ignore favicon.ico if base URL is invalid
+    }
+  }
     
     // Extract colors (still uses regex as it's pattern matching in CSS)
     assets.colors = extractColorsSecurely($, html);
@@ -396,19 +414,32 @@ function extractAssetsFromMetaTags($: cheerio.CheerioAPI, baseUrl: string): Extr
     illustrations: []
   };
 
-  // Extract OG images, favicons, and other meta assets
+  // Extract OG images and Twitter images (these are usually illustrations/hero images, not logos)
   $('meta[property="og:image"], meta[name="twitter:image"], meta[property="og:image:url"]').each((_, el) => {
     const content = $(el).attr('content');
     if (content) {
       try {
         const url = new URL(content, baseUrl);
         if (url.protocol === 'http:' || url.protocol === 'https:') {
-          assets.illustrations.push({
-            type: 'illustration',
-            url: url.href,
-            source: 'html',
-            alt: 'Social media image'
-          });
+          // Check if this might be a logo based on filename
+          const filename = url.pathname.toLowerCase();
+          const isLikelyLogo = ['logo', 'icon', 'favicon'].some(keyword => filename.includes(keyword));
+          
+          if (isLikelyLogo) {
+            assets.logos.push({
+              type: 'logo',
+              url: url.href,
+              source: 'html',
+              alt: 'Social media logo'
+            });
+          } else {
+            assets.illustrations.push({
+              type: 'illustration',
+              url: url.href,
+              source: 'html',
+              alt: 'Social media image'
+            });
+          }
         }
       } catch (e) {
         console.warn('Invalid meta image URL:', content);
@@ -431,9 +462,9 @@ function extractAssetsFromMetaTags($: cheerio.CheerioAPI, baseUrl: string): Extr
     }
   });
 
-  // Extract additional favicon formats
-  $('meta[property="og:image"], link[rel="mask-icon"]').each((_, el) => {
-    const href = $(el).attr('href') || $(el).attr('content');
+  // Extract additional favicon formats specifically for logos
+  $('link[rel="mask-icon"], link[rel="fluid-icon"]').each((_, el) => {
+    const href = $(el).attr('href');
     if (href) {
       try {
         const url = new URL(href, baseUrl);
@@ -481,7 +512,7 @@ async function extractAssetsFromCssLinks($: cheerio.CheerioAPI, baseUrl: string)
     }
   });
 
-  // Extract Google Fonts and other font services
+  // Extract Google Fonts and other font services from URLs
   cssLinks.forEach(cssUrl => {
     // Google Fonts detection
     if (cssUrl.includes('fonts.googleapis.com') || cssUrl.includes('fonts.gstatic.com')) {
@@ -508,11 +539,129 @@ async function extractAssetsFromCssLinks($: cheerio.CheerioAPI, baseUrl: string)
     }
   });
 
-  // For development/local testing, we could fetch and parse CSS files
-  // but for production, we'll stick to what we can extract from the HTML
-  // to avoid additional network requests and potential blocking
+  // For same-origin CSS files, try to fetch and parse them for colors and fonts
+  const sameOriginCss = cssLinks.filter(cssUrl => {
+    try {
+      const cssUrlObj = new URL(cssUrl);
+      const baseUrlObj = new URL(baseUrl);
+      return cssUrlObj.hostname === baseUrlObj.hostname;
+    } catch {
+      return false;
+    }
+  });
+
+  // Fetch and parse same-origin CSS files (limit to first 2 to avoid performance issues)
+  for (const cssUrl of sameOriginCss.slice(0, 2)) {
+    try {
+      console.log('Fetching CSS for asset extraction:', cssUrl);
+      
+      // Use our proxy if available, otherwise direct fetch
+      let cssContent: string;
+      if (typeof window !== 'undefined' && window.location?.hostname === 'brrrand.it.com') {
+        // In production, use proxy
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(cssUrl)}`;
+        const response = await fetch(proxyUrl);
+        if (response.ok) {
+          cssContent = await response.text();
+        } else {
+          continue;
+        }
+      } else {
+        // For development or direct access
+        const response = await fetch(cssUrl);
+        if (!response.ok) continue;
+        cssContent = await response.text();
+      }
+
+      // Extract colors from CSS
+      const cssColors = extractColorsFromCssContent(cssContent);
+      assets.colors.push(...cssColors);
+
+      // Extract font families from CSS
+      const cssFonts = extractFontsFromCssContent(cssContent);
+      assets.fonts.push(...cssFonts);
+
+    } catch (error) {
+      console.warn('Failed to fetch CSS file:', cssUrl, error);
+      // Continue with other CSS files
+    }
+  }
 
   return assets;
+}
+
+/**
+ * Extract colors from CSS content
+ */
+function extractColorsFromCssContent(cssContent: string): BrandAsset[] {
+  const colors: BrandAsset[] = [];
+  const colorSet = new Set<string>();
+
+  const colorPatterns = [
+    /#[0-9a-f]{6}|#[0-9a-f]{3}/gi, // Hex colors
+    /rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/gi, // RGB colors
+    /rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[0-9.]+\s*\)/gi, // RGBA colors
+    /hsl\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*\)/gi // HSL colors
+  ];
+
+  colorPatterns.forEach(pattern => {
+    const matches = cssContent.match(pattern) || [];
+    matches.forEach(match => {
+      const normalizedColor = normalizeColor(match);
+      if (normalizedColor && !colorSet.has(normalizedColor)) {
+        colorSet.add(normalizedColor);
+        colors.push({
+          type: 'color',
+          value: normalizedColor,
+          source: 'css'
+        });
+      }
+    });
+  });
+
+  return colors;
+}
+
+/**
+ * Extract font families from CSS content
+ */
+function extractFontsFromCssContent(cssContent: string): BrandAsset[] {
+  const fonts: BrandAsset[] = [];
+  const fontSet = new Set<string>();
+
+  // Match font-family declarations
+  const fontFamilyPattern = /font-family\s*:\s*([^;}]+)/gi;
+  const matches = cssContent.match(fontFamilyPattern) || [];
+
+  matches.forEach(match => {
+    // Extract the font family value
+    const fontValue = match.replace(/font-family\s*:\s*/i, '').trim();
+    
+    // Split by comma and clean up each font name
+    const fontNames = fontValue.split(',').map(font => 
+      font.trim()
+        .replace(/['"]/g, '') // Remove quotes
+        .replace(/!important/gi, '') // Remove !important
+        .trim()
+    ).filter(font => 
+      font && 
+      font.length > 0 &&
+      !['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'inherit', 'initial', 'unset'].includes(font.toLowerCase())
+    );
+
+    fontNames.forEach(fontName => {
+      if (!fontSet.has(fontName)) {
+        fontSet.add(fontName);
+        fonts.push({
+          type: 'font',
+          name: fontName,
+          source: 'css'
+        });
+      }
+    });
+  });
+
+  return fonts;
 }
 
 /**
