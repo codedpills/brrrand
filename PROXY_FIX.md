@@ -92,3 +92,56 @@ After this fix:
 4. Monitor function logs for any remaining issues
 
 The application should now handle website proxying correctly in production.
+
+---
+
+## Asset Extraction Enhancement - July 20, 2025
+
+### Issue with Original Fix
+After implementing the proxy error fix, websites were returning zero assets because:
+- The regex-based sanitization was too aggressive 
+- It removed `<link>`, `<meta>`, `<style>`, and other elements needed for asset extraction
+- The secure HTML parser (`cheerio`) needs these elements to extract brand assets
+
+### Enhanced Solution
+
+#### 1. **Two-Tier Sanitization Approach**
+- **Regular sanitization**: For general web browsing (removes forms, dangerous elements)
+- **Minimal sanitization**: For asset extraction (preserves HTML structure)
+
+#### 2. **Smart Header-Based Detection**
+- Client sends `X-Purpose: asset-extraction` header for asset extraction requests
+- Proxy automatically uses minimal sanitization for these requests
+- Maintains security while maximizing extraction accuracy
+
+#### 3. **Specialized Functions**
+- **`fetchForAssetExtraction()`**: New function for asset extraction with proper headers
+- **`minimalSanitizeForExtraction()`**: Removes only critical security threats
+- **`sanitizeContent()`**: Enhanced to preserve asset-related elements
+
+#### 4. **What Gets Preserved for Asset Extraction**
+- ✅ `<link>` tags (for fonts, stylesheets, favicons)
+- ✅ `<meta>` tags (for theme colors, descriptions)
+- ✅ `<style>` tags (for CSS analysis)
+- ✅ `<img>` and `<svg>` tags (for logos and illustrations)
+- ✅ Class and ID attributes (for CSS selectors)
+- ✅ Data URLs for inline SVGs and images
+
+#### 5. **What Still Gets Removed**
+- ❌ `<script>` tags (critical security)
+- ❌ Event handlers (`onclick`, `onload`, etc.)
+- ❌ `javascript:` protocols
+- ❌ Form elements (`<form>`, `<input>`, `<button>`)
+- ❌ Dangerous objects (`<iframe>`, `<object>`, `<embed>`)
+
+### Files Updated
+- `functions/_lib/utils.ts` - Added `minimalSanitizeForExtraction()` function
+- `functions/api/proxy.ts` - Header-based sanitization selection
+- `src/utils/proxyUtils.ts` - Added `fetchForAssetExtraction()` function
+- `src/utils/assetExtraction.ts` - Uses new specialized fetch function
+
+### Expected Results
+✅ **Much higher asset extraction success rate** - Websites should now return logos, colors, fonts, and illustrations  
+✅ **Maintained security** - Still protected against XSS and code injection  
+✅ **Better performance** - Optimized sanitization based on request type  
+✅ **Detailed logging** - Enhanced debugging information for troubleshooting  

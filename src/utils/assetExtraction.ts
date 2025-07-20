@@ -6,7 +6,7 @@
 // Import the secure HTML parser
 import { parseHtmlSecurely } from './secureHtmlParser'
 // Import proxy utilities
-import { fetchThroughProxy, shouldUseProxy, isProxyAvailable } from './proxyUtils'
+import { fetchForAssetExtraction, shouldUseProxy, isProxyAvailable } from './proxyUtils'
 
 export interface BrandAsset {
   type: 'logo' | 'color' | 'font' | 'illustration'
@@ -67,7 +67,7 @@ export async function extractAssets(url: string): Promise<AssetExtractionResult>
     const proxyAvailable = await isProxyAvailable().catch(() => false);
     
     if (shouldUseProxy() && proxyAvailable) {
-      html = await fetchThroughProxy(normalizedUrl);
+      html = await fetchForAssetExtraction(normalizedUrl);
     } else {
       const response = await fetch(normalizedUrl);
       

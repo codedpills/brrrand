@@ -110,7 +110,17 @@ const URL_ATTRIBUTES: readonly string[] = [
 ] as const;
 
 /**
- * Sanitize HTML content by removing potentially dangerous elements and attributes
+ * Sanitize HTML content for asset extraction
+ * 
+ * This function removes truly dangerous elements while preserving elements needed
+ * for brand asset extraction. The security model is:
+ * 1. Remove elements that can execute code (script, object, iframe)
+ * 2. Remove elements that can submit data (forms, inputs)
+ * 3. Remove dangerous attributes (event handlers, dangerous URLs)
+ * 4. PRESERVE elements needed for asset extraction (link, meta, style, img, svg)
+ * 
+ * The actual asset extraction is handled securely by the cheerio-based parser
+ * which can safely parse these elements without executing dangerous code.
  * 
  * @param html - The HTML content to sanitize
  * @returns The sanitized HTML content
@@ -119,31 +129,40 @@ export function sanitizeContent(html: string): string {
   if (!html) return '';
   
   try {
-    // Remove script tags and their content
-    let sanitized = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    let sanitized = html;
     
-    // Remove iframe tags
-    sanitized = sanitized.replace(/<iframe\b[^>]*>/gi, '');
-    sanitized = sanitized.replace(/<\/iframe>/gi, '');
+    // Remove script tags and their content (critical security)
+    sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
     
-    // Remove object and embed tags
+    // Remove dangerous objects and embeds
     sanitized = sanitized.replace(/<(?:object|embed|applet)\b[^>]*>/gi, '');
     sanitized = sanitized.replace(/<\/(?:object|embed|applet)>/gi, '');
     
-    // Remove form elements
-    sanitized = sanitized.replace(/<(?:form|input|button)\b[^>]*>/gi, '');
-    sanitized = sanitized.replace(/<\/(?:form|input|button)>/gi, '');
+    // Remove form elements that could submit data
+    sanitized = sanitized.replace(/<(?:form|input|button|textarea|select)\b[^>]*>/gi, '');
+    sanitized = sanitized.replace(/<\/(?:form|input|button|textarea|select)>/gi, '');
     
-    // Remove meta tags (except charset and viewport)
-    sanitized = sanitized.replace(/<meta\b(?![^>]*(?:charset|viewport))[^>]*>/gi, '');
+    // Remove frame elements
+    sanitized = sanitized.replace(/<(?:frame|frameset|iframe)\b[^>]*>/gi, '');
+    sanitized = sanitized.replace(/<\/(?:frame|frameset|iframe)>/gi, '');
     
-    // Remove event handlers (onclick, onload, etc.)
+    // Remove event handlers from all elements (onclick, onload, etc.)
     sanitized = sanitized.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
     
-    // Remove javascript: and data: protocols from href and src attributes
-    sanitized = sanitized.replace(/(?:href|src)\s*=\s*["'](?:javascript|data):[^"']*["']/gi, '');
+    // Remove javascript: and data: protocols ONLY from href and src attributes
+    sanitized = sanitized.replace(/(href|src)\s*=\s*["'](?:javascript|data):[^"']*["']/gi, '');
     
-    // Return the sanitized content as-is (don't escape HTML entities for now)
+    // Remove dangerous style expressions (IE specific attacks)
+    sanitized = sanitized.replace(/style\s*=\s*["'][^"']*expression\s*\([^"']*["']/gi, '');
+    
+    // PRESERVE these elements that are needed for asset extraction:
+    // - <link> tags (for fonts, stylesheets)
+    // - <meta> tags (for theme colors, icons, etc.)
+    // - <style> tags (for CSS analysis)
+    // - <img> tags (for logos and illustrations)
+    // - <svg> tags (for vector logos)
+    // - class and id attributes (for CSS selectors)
+    
     return sanitized;
   } catch (error) {
     console.error('Content sanitization failed:', error);
@@ -182,6 +201,35 @@ export function isSafeImageUrl(url: string): boolean {
     return ext !== undefined && SAFE_IMAGE_EXTENSIONS.includes(ext as any);
   } catch {
     return false;
+  }
+}
+
+/**
+ * Minimal sanitization for asset extraction
+ * Only removes the most dangerous elements while preserving maximum HTML structure
+ * for accurate asset extraction
+ */
+export function minimalSanitizeForExtraction(html: string): string {
+  if (!html) return '';
+  
+  try {
+    let sanitized = html;
+    
+    // Remove script tags and their content (absolutely critical)
+    sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    
+    // Remove only the most dangerous event handlers that could execute immediately
+    sanitized = sanitized.replace(/\s+on(?:load|error|click)\s*=\s*["'][^"']*["']/gi, '');
+    
+    // Remove only javascript: protocols (but keep data: for inline images/SVGs)
+    sanitized = sanitized.replace(/(href|src)\s*=\s*["']javascript:[^"']*["']/gi, '');
+    
+    // That's it! Preserve everything else for maximum asset extraction accuracy
+    return sanitized;
+  } catch (error) {
+    console.error('Minimal sanitization failed:', error);
+    // Fallback to regular sanitization
+    return sanitizeContent(html);
   }
 }
 

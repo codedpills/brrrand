@@ -1,4 +1,4 @@
-import { isValidUrl, sanitizeContent } from '../_lib/utils';
+import { isValidUrl, sanitizeContent, minimalSanitizeForExtraction } from '../_lib/utils';
 import { checkRateLimit } from '../_lib/rateLimiter';
 
 interface Env {
@@ -157,7 +157,20 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     const content = await response.text();
     
     if (contentType.includes('text/html')) {
-      return new Response(sanitizeContent(content), {
+      // Check if this is an asset extraction request (minimal sanitization)
+      const isAssetExtraction = request.headers.get('X-Purpose') === 'asset-extraction';
+      
+      const sanitizedContent = isAssetExtraction 
+        ? minimalSanitizeForExtraction(content)
+        : sanitizeContent(content);
+        
+      console.log('HTML sanitization:', { 
+        isAssetExtraction, 
+        originalLength: content.length, 
+        sanitizedLength: sanitizedContent.length 
+      });
+      
+      return new Response(sanitizedContent, {
         status: 200,
         headers: responseHeaders
       });

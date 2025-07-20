@@ -88,6 +88,42 @@ export async function fetchThroughProxy(url: string, options?: RequestInit): Pro
 }
 
 /**
+ * Fetch content through proxy specifically for asset extraction
+ * Uses minimal sanitization to preserve HTML structure for accurate parsing
+ * 
+ * @param url The URL to fetch for asset extraction
+ * @returns The minimally sanitized content from the URL
+ */
+export async function fetchForAssetExtraction(url: string): Promise<string> {
+  try {
+    const proxyUrl = getProxyUrl(url);
+    const startTime = Date.now();
+    
+    const response = await fetch(proxyUrl, {
+      method: 'GET',
+      headers: {
+        'X-Purpose': 'asset-extraction', // Signal for minimal sanitization
+        'Accept': 'text/html,application/xhtml+xml,*/*',
+      },
+      credentials: 'same-origin',
+    });
+    
+    const endTime = Date.now();
+    console.debug(`Asset extraction fetch completed in ${endTime - startTime}ms`);
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'No error details');
+      throw new Error(`Proxy error (${response.status}): ${errorText}`);
+    }
+    
+    return await response.text();
+  } catch (error) {
+    console.error('Error fetching for asset extraction:', error);
+    throw new Error(`Failed to fetch for asset extraction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Check if the proxy server is available
  * 
  * @returns Promise that resolves to true if the proxy is available, false otherwise
