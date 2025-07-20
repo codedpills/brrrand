@@ -144,4 +144,65 @@ After implementing the proxy error fix, websites were returning zero assets beca
 ✅ **Much higher asset extraction success rate** - Websites should now return logos, colors, fonts, and illustrations  
 ✅ **Maintained security** - Still protected against XSS and code injection  
 ✅ **Better performance** - Optimized sanitization based on request type  
-✅ **Detailed logging** - Enhanced debugging information for troubleshooting  
+✅ **Detailed logging** - Enhanced debugging information for troubleshooting
+
+---
+
+## Advanced Asset Extraction Improvements - July 20, 2025
+
+### Additional Issues Addressed
+
+#### 1. **X.com/Twitter Redirect Handling**
+- **Issue**: X.com returns 301 redirect to twitter.com, causing 400 errors
+- **Solution**: Added automatic redirect following with safety limits
+- **Details**: 
+  - Maximum 5 redirects to prevent infinite loops
+  - Resolves relative redirect URLs properly
+  - Logs each redirect for debugging
+
+#### 2. **Instagram Logo Deduplication**
+- **Issue**: Multiple similar favicons and touch icons creating duplicates
+- **Solution**: Intelligent logo grouping and prioritization
+- **Details**:
+  - Groups similar logos by domain and normalized filename
+  - Prioritizes higher resolution and better formats (SVG > PNG)
+  - Removes size indicators and common prefixes for matching
+
+#### 3. **SPA Asset Detection Enhancement**
+- **Issue**: JavaScript-heavy sites (like kutanapay.com) returning no assets
+- **Solution**: Enhanced extraction for modern web applications
+- **Details**:
+  - Extracts OG images and meta tag assets
+  - Detects Google Fonts and Adobe Fonts in CSS links
+  - Extracts theme colors from meta tags
+  - Processes inline SVG logos with data URLs
+
+#### 4. **Advanced Logo Detection**
+- **Enhanced patterns**: Added support for apple-touch-icon-precomposed, mask-icons
+- **Inline SVG support**: Converts inline SVGs to data URLs for download
+- **Size awareness**: Includes size information in favicon descriptions
+- **ID-based detection**: Uses element IDs for better logo identification
+
+### Technical Improvements
+
+#### Files Updated
+- `functions/api/proxy.ts` - Added redirect handling with manual redirect control
+- `src/utils/secureHtmlParser.ts` - Enhanced asset extraction and smart deduplication
+- Added new functions:
+  - `extractAssetsFromMetaTags()` - Extracts OG images, theme colors, favicons from meta tags
+  - `extractAssetsFromCssLinks()` - Detects font services and external stylesheets
+  - `deduplicateLogos()` - Smart logo deduplication with similarity matching
+  - Enhanced `extractLogosSecurely()` with SVG and better favicon support
+
+#### Expected Improvements
+✅ **X.com and other redirect sites now work** - Automatic redirect following up to 5 hops  
+✅ **Instagram shows 1-2 high-quality logos instead of 10+ duplicates** - Smart deduplication  
+✅ **SPAs like kutanapay.com now extract meta assets** - OG images, favicons, theme colors  
+✅ **Better font detection** - Google Fonts and Adobe Fonts from CSS links  
+✅ **Inline SVG support** - Converts inline logos to downloadable data URLs  
+✅ **Enhanced debugging** - Detailed logging for redirects and extraction process
+
+### Testing Results
+- All 48 tests passing ✅
+- No breaking changes to existing functionality
+- Enhanced extraction capabilities for modern websites

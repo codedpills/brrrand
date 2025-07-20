@@ -110,15 +110,77 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
 
     console.log(`Proxying request to: ${targetUrl}`);
     
-    const response = await fetch(targetUrl, {
-      headers: {
-        'User-Agent': 'Brrrand Asset Extractor/1.0 (https://brrrand.it.com)',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-    });
+    // Follow redirects with a maximum limit to prevent infinite loops
+    let currentUrl = targetUrl;
+    let redirectCount = 0;
+    const maxRedirects = 5;
+    let response: Response;
+
+    while (redirectCount <= maxRedirects) {
+      response = await fetch(currentUrl, {
+        headers: {
+          'User-Agent': 'Brrrand Asset Extractor/1.0 (https://brrrand.it.com)',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        },
+        redirect: 'manual' // Handle redirects manually to track them
+      });
+
+      // Handle redirect responses
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location');
+        if (!location) {
+          console.error('Redirect response without location header:', response.status);
+          return new Response(JSON.stringify({
+            error: `Website returned ${response.status} but no redirect location provided`
+          }), {
+            status: response.status,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+
+        // Resolve relative redirects
+        try {
+          currentUrl = new URL(location, currentUrl).href;
+        } catch (e) {
+          console.error('Invalid redirect URL:', location);
+          return new Response(JSON.stringify({
+            error: 'Invalid redirect URL received from website'
+          }), {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+
+        redirectCount++;
+        console.log(`Following redirect ${redirectCount}: ${currentUrl}`);
+        
+        if (redirectCount > maxRedirects) {
+          return new Response(JSON.stringify({
+            error: `Too many redirects (${maxRedirects}+ redirects detected)`
+          }), {
+            status: 310, // Too Many Redirects
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+        continue;
+      }
+
+      // Non-redirect response, break the loop
+      break;
+    }
 
     if (!response.ok) {
+      console.error(`Final response not OK: ${response.status} for URL: ${currentUrl}`);
       return new Response(JSON.stringify({
         error: `Website returned ${response.status}`
       }), {

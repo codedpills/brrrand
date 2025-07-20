@@ -45,6 +45,17 @@ export async function parseHtmlSecurely(html: string, baseUrl: string): Promise<
     // Extract illustrations
     assets.illustrations = extractIllustrationsSecurely($, validBaseUrl);
     
+    // Enhanced extraction for SPAs - extract additional assets from CSS files
+    const cssAssets = await extractAssetsFromCssLinks($, validBaseUrl);
+    assets.fonts.push(...cssAssets.fonts);
+    assets.colors.push(...cssAssets.colors);
+    
+    // Extract meta tag assets for SPAs (OG images, theme colors, etc.)
+    const metaAssets = extractAssetsFromMetaTags($, validBaseUrl);
+    assets.logos.push(...metaAssets.logos);
+    assets.colors.push(...metaAssets.colors);
+    assets.illustrations.push(...metaAssets.illustrations);
+    
     // Deduplicate assets (reusing existing function)
     return deduplicateAssets(assets);
   } catch (error) {
@@ -59,9 +70,10 @@ export async function parseHtmlSecurely(html: string, baseUrl: string): Promise<
 function extractLogosSecurely($: cheerio.CheerioAPI, baseUrl: string): BrandAsset[] {
   const logos: BrandAsset[] = [];
   
-  // Extract favicon and touch icons
-  $('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]').each((_, el) => {
+  // Extract favicon and touch icons with size prioritization
+  $('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"]').each((_, el) => {
     const href = $(el).attr('href');
+    const sizes = $(el).attr('sizes');
     if (href) {
       try {
         // Validate URL to prevent javascript: protocol exploits
@@ -71,7 +83,7 @@ function extractLogosSecurely($: cheerio.CheerioAPI, baseUrl: string): BrandAsse
             type: 'logo',
             url: url.href,
             source: 'link',
-            alt: 'Favicon'
+            alt: sizes ? `Favicon (${sizes})` : 'Favicon'
           });
         }
       } catch (e) {
@@ -86,14 +98,15 @@ function extractLogosSecurely($: cheerio.CheerioAPI, baseUrl: string): BrandAsse
     const src = $(el).attr('src');
     const alt = $(el).attr('alt') || '';
     const className = $(el).attr('class') || '';
+    const id = $(el).attr('id') || '';
     
     if (src) {
       try {
         // Validate URL
         const url = new URL(src, baseUrl);
         if (url.protocol === 'http:' || url.protocol === 'https:') {
-          // Check if this looks like a logo
-          if (isLikelyLogo(src, alt, className)) {
+          // Check if this looks like a logo with enhanced detection
+          if (isLikelyLogo(src, alt, className, id)) {
             logos.push({
               type: 'logo',
               url: url.href,
@@ -107,16 +120,37 @@ function extractLogosSecurely($: cheerio.CheerioAPI, baseUrl: string): BrandAsse
       }
     }
   });
+
+  // Extract SVG logos (inline SVGs with logo-related attributes)
+  $('svg').each((_, el) => {
+    const className = $(el).attr('class') || '';
+    const id = $(el).attr('id') || '';
+    const title = $(el).find('title').text() || '';
+    
+    if (isLikelyLogo('', title, className, id)) {
+      // Convert SVG to data URL for inline logos
+      const svgHtml = $.html(el);
+      if (svgHtml) {
+        const dataUrl = `data:image/svg+xml;base64,${Buffer.from(svgHtml).toString('base64')}`;
+        logos.push({
+          type: 'logo',
+          url: dataUrl,
+          alt: title || 'Inline SVG logo',
+          source: 'inline'
+        });
+      }
+    }
+  });
   
   return logos;
 }
 
 /**
- * Check if an image is likely to be a logo (reused from original implementation)
+ * Check if an image is likely to be a logo (enhanced with ID support)
  */
-function isLikelyLogo(src: string, alt: string, className: string): boolean {
+function isLikelyLogo(src: string, alt: string, className: string, id?: string): boolean {
   const logoKeywords = ['logo', 'brand', 'mark', 'icon'];
-  const text = `${src} ${alt} ${className}`.toLowerCase();
+  const text = `${src} ${alt} ${className} ${id || ''}`.toLowerCase();
   return logoKeywords.some(keyword => text.includes(keyword));
 }
 
@@ -352,6 +386,136 @@ function extractBackgroundImagesFromCSS(css: string, illustrations: BrandAsset[]
 }
 
 /**
+ * Extract assets from meta tags (for SPAs and modern websites)
+ */
+function extractAssetsFromMetaTags($: cheerio.CheerioAPI, baseUrl: string): ExtractedAssets {
+  const assets: ExtractedAssets = {
+    logos: [],
+    colors: [],
+    fonts: [],
+    illustrations: []
+  };
+
+  // Extract OG images, favicons, and other meta assets
+  $('meta[property="og:image"], meta[name="twitter:image"], meta[property="og:image:url"]').each((_, el) => {
+    const content = $(el).attr('content');
+    if (content) {
+      try {
+        const url = new URL(content, baseUrl);
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          assets.illustrations.push({
+            type: 'illustration',
+            url: url.href,
+            source: 'html',
+            alt: 'Social media image'
+          });
+        }
+      } catch (e) {
+        console.warn('Invalid meta image URL:', content);
+      }
+    }
+  });
+
+  // Extract theme colors
+  $('meta[name="theme-color"], meta[name="msapplication-TileColor"]').each((_, el) => {
+    const content = $(el).attr('content');
+    if (content) {
+      const normalizedColor = normalizeColor(content);
+      if (normalizedColor) {
+        assets.colors.push({
+          type: 'color',
+          value: normalizedColor,
+          source: 'html'
+        });
+      }
+    }
+  });
+
+  // Extract additional favicon formats
+  $('meta[property="og:image"], link[rel="mask-icon"]').each((_, el) => {
+    const href = $(el).attr('href') || $(el).attr('content');
+    if (href) {
+      try {
+        const url = new URL(href, baseUrl);
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          assets.logos.push({
+            type: 'logo',
+            url: url.href,
+            source: 'html',
+            alt: 'Website icon'
+          });
+        }
+      } catch (e) {
+        console.warn('Invalid meta icon URL:', href);
+      }
+    }
+  });
+
+  return assets;
+}
+
+/**
+ * Extract assets from linked CSS files (for SPAs with external stylesheets)
+ */
+async function extractAssetsFromCssLinks($: cheerio.CheerioAPI, baseUrl: string): Promise<ExtractedAssets> {
+  const assets: ExtractedAssets = {
+    logos: [],
+    colors: [],
+    fonts: [],
+    illustrations: []
+  };
+
+  // Find CSS links
+  const cssLinks: string[] = [];
+  $('link[rel="stylesheet"]').each((_, el) => {
+    const href = $(el).attr('href');
+    if (href) {
+      try {
+        const url = new URL(href, baseUrl);
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          cssLinks.push(url.href);
+        }
+      } catch (e) {
+        console.warn('Invalid CSS URL:', href);
+      }
+    }
+  });
+
+  // Extract Google Fonts and other font services
+  cssLinks.forEach(cssUrl => {
+    // Google Fonts detection
+    if (cssUrl.includes('fonts.googleapis.com') || cssUrl.includes('fonts.gstatic.com')) {
+      const fontMatch = cssUrl.match(/family=([^&:]+)/);
+      if (fontMatch) {
+        const fontName = decodeURIComponent(fontMatch[1]).replace(/\+/g, ' ');
+        assets.fonts.push({
+          type: 'font',
+          name: fontName,
+          url: cssUrl,
+          source: 'link'
+        });
+      }
+    }
+
+    // Adobe Fonts / Typekit detection
+    if (cssUrl.includes('use.typekit.net') || cssUrl.includes('use.adobe.com')) {
+      assets.fonts.push({
+        type: 'font',
+        name: 'Adobe Fonts',
+        url: cssUrl,
+        source: 'link'
+      });
+    }
+  });
+
+  // For development/local testing, we could fetch and parse CSS files
+  // but for production, we'll stick to what we can extract from the HTML
+  // to avoid additional network requests and potential blocking
+
+  return assets;
+}
+
+/**
  * Remove duplicate assets from the extracted results
  */
 function deduplicateAssets(assets: ExtractedAssets): ExtractedAssets {
@@ -364,6 +528,14 @@ function deduplicateAssets(assets: ExtractedAssets): ExtractedAssets {
 }
 
 function deduplicateByUrl(assets: BrandAsset[]): BrandAsset[] {
+  if (assets.length === 0) return assets;
+  
+  // For logos, implement smart deduplication
+  if (assets[0].type === 'logo') {
+    return deduplicateLogos(assets);
+  }
+  
+  // For other assets, use simple URL deduplication
   const seen = new Set<string>();
   return assets.filter(asset => {
     if (asset.url && seen.has(asset.url)) {
@@ -374,6 +546,84 @@ function deduplicateByUrl(assets: BrandAsset[]): BrandAsset[] {
     }
     return true;
   });
+}
+
+function deduplicateLogos(logos: BrandAsset[]): BrandAsset[] {
+  // Group logos by similarity (same domain, similar filenames)
+  const groups = new Map<string, BrandAsset[]>();
+  
+  logos.forEach(logo => {
+    if (!logo.url) return;
+    
+    try {
+      const url = new URL(logo.url);
+      const filename = url.pathname.split('/').pop() || '';
+      
+      // Create a similarity key based on domain + normalized filename
+      const normalizedFilename = filename
+        .replace(/[-_\.]/g, '') // Remove separators
+        .replace(/\d+x?\d*/g, '') // Remove size indicators like "32x32", "180"
+        .replace(/android|apple|ms|favicon|touch|icon/gi, '') // Remove common prefixes
+        .toLowerCase();
+      
+      const similarityKey = `${url.hostname}:${normalizedFilename}`;
+      
+      if (!groups.has(similarityKey)) {
+        groups.set(similarityKey, []);
+      }
+      groups.get(similarityKey)!.push(logo);
+    } catch (e) {
+      // If URL parsing fails, treat as unique
+      const uniqueKey = `invalid:${logo.url}`;
+      groups.set(uniqueKey, [logo]);
+    }
+  });
+  
+  // For each group, select the best logo
+  const deduplicated: BrandAsset[] = [];
+  
+  groups.forEach(groupLogos => {
+    if (groupLogos.length === 1) {
+      deduplicated.push(groupLogos[0]);
+      return;
+    }
+    
+    // Sort by preference: larger sizes, better formats, more specific alt text
+    const sortedLogos = groupLogos.sort((a, b) => {
+      // Prefer logos with size information in URL (usually higher quality)
+      const aSizeMatch = a.url?.match(/(\d+)x?(\d+)?/);
+      const bSizeMatch = b.url?.match(/(\d+)x?(\d+)?/);
+      
+      if (aSizeMatch && bSizeMatch) {
+        const aSize = parseInt(aSizeMatch[1]) * (parseInt(aSizeMatch[2]) || parseInt(aSizeMatch[1]));
+        const bSize = parseInt(bSizeMatch[1]) * (parseInt(bSizeMatch[2]) || parseInt(bSizeMatch[2]));
+        if (aSize !== bSize) return bSize - aSize; // Prefer larger
+      } else if (aSizeMatch && !bSizeMatch) {
+        return -1; // Prefer sized over unsized
+      } else if (!aSizeMatch && bSizeMatch) {
+        return 1;
+      }
+      
+      // Prefer SVG over other formats
+      const aIsSvg = a.url?.includes('.svg') || a.url?.includes('svg');
+      const bIsSvg = b.url?.includes('.svg') || b.url?.includes('svg');
+      if (aIsSvg && !bIsSvg) return -1;
+      if (!aIsSvg && bIsSvg) return 1;
+      
+      // Prefer logos with meaningful alt text
+      const aHasAlt = a.alt && a.alt.length > 3 && !a.alt.toLowerCase().includes('favicon');
+      const bHasAlt = b.alt && b.alt.length > 3 && !b.alt.toLowerCase().includes('favicon');
+      if (aHasAlt && !bHasAlt) return -1;
+      if (!aHasAlt && bHasAlt) return 1;
+      
+      return 0;
+    });
+    
+    // Take the best logo from this group
+    deduplicated.push(sortedLogos[0]);
+  });
+  
+  return deduplicated;
 }
 
 function deduplicateByValue(assets: BrandAsset[]): BrandAsset[] {
