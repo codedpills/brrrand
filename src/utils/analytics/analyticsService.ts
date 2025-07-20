@@ -44,7 +44,8 @@ export const EventCategory = {
   DOWNLOAD: 'download',
   ERROR: 'error',
   PERFORMANCE: 'performance',
-  USER_FLOW: 'user_flow'
+  USER_FLOW: 'user_flow',
+  SEO: 'seo'
 } as const;
 
 export type EventCategoryType = typeof EventCategory[keyof typeof EventCategory];

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found - Brrrand</title>
+    <meta name="description" content="The page you're looking for doesn't exist. Return to Brrrand to extract brand assets from any website.">
+    <meta name="robots" content="noindex, follow">
+    <link rel="canonical" href="https://brrrand.it.com/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+            padding: 2rem;
+        }
+        h1 {
+            font-size: 4rem;
+            margin: 0 0 1rem 0;
+            font-weight: 900;
+        }
+        h2 {
+            font-size: 2rem;
+            margin: 0 0 1rem 0;
+            font-weight: 600;
+        }
+        p {
+            font-size: 1.2rem;
+            margin: 0 0 2rem 0;
+            opacity: 0.9;
+        }
+        .btn {
+            display: inline-block;
+            background: white;
+            color: #ec4899;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .links {
+            margin-top: 2rem;
+        }
+        .links a {
+            color: white;
+            text-decoration: underline;
+            margin: 0 1rem;
+            opacity: 0.8;
+        }
+        .links a:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>404</h1>
+        <h2>Page Not Found</h2>
+        <p>Oops! The page you're looking for doesn't exist. But don't worry, you can still extract amazing brand assets from any website!</p>
+        
+        <a href="/" class="btn">← Back to Brrrand</a>
+        
+        <div class="links">
+            <a href="/">Home</a>
+            <a href="/#features">Features</a>
+            <a href="/#how-it-works">How It Works</a>
+        </div>
+    </div>
+    
+    <!-- Analytics for 404 tracking -->
+    <script>
+        // Track 404 errors for SEO optimization
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'page_not_found', {
+                'event_category': 'SEO',
+                'page_url': window.location.pathname
+            });
+        }
+    </script>
+</body>
+</html>

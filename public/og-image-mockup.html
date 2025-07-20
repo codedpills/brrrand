@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brrrand OG Image Mockup</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .og-container {
+            width: 1200px;
+            height: 630px;
+            background: linear-gradient(135deg, #ffffff 0%, #fdf2f8 50%, #fce7f3 100%);
+            display: flex;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .left-section {
+            width: 400px;
+            padding: 60px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .logo {
+            font-size: 48px;
+            font-weight: 900;
+            color: #ec4899;
+            margin-bottom: 8px;
+            letter-spacing: -1px;
+        }
+
+        .tagline {
+            font-size: 18px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 30px;
+            line-height: 1.4;
+        }
+
+        .badge {
+            background: #ec4899;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 20px;
+            width: fit-content;
+        }
+
+        .features {
+            list-style: none;
+        }
+
+        .features li {
+            color: #374151;
+            font-size: 14px;
+            margin-bottom: 8px;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .features li:before {
+            content: "✓";
+            color: #ec4899;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+
+        .domain {
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #ec4899;
+        }
+
+        .right-section {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f3f4f6;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .logos-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            align-items: center;
+        }
+
+        .logo-item {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .logo-apple { background: #000; }
+        .logo-instagram { background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); }
+        .logo-twitter { background: #1da1f2; }
+        .logo-spotify { background: #1db954; }
+        .logo-netflix { background: #e50914; }
+
+        .colors-grid {
+            display: flex;
+            gap: 12px;
+        }
+
+        .color-swatch {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            position: relative;
+            border: 1px solid #e5e7eb;
+        }
+
+        .color-label {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .color-1 { background: linear-gradient(45deg, #f09433, #e6683c); }
+        .color-2 { background: #1db954; }
+        .color-3 { background: #e50914; }
+        .color-4 { background: #1da1f2; }
+        .color-5 { background: #a1a1a6; }
+
+        .fonts-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .font-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .font-preview {
+            font-size: 18px;
+            font-weight: 600;
+            min-width: 80px;
+        }
+
+        .font-name {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .font-apple { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        .font-google { font-family: 'Product Sans', sans-serif; }
+        .font-netflix { font-family: 'Netflix Sans', sans-serif; }
+
+        .decorative-elements {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(236, 72, 153, 0.1);
+        }
+
+        .circle-1 {
+            width: 120px;
+            height: 120px;
+            top: 50px;
+            right: 80px;
+        }
+
+        .circle-2 {
+            width: 60px;
+            height: 60px;
+            bottom: 100px;
+            left: 320px;
+        }
+
+        .cta {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            background: #ec4899;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="og-container">
+        <div class="decorative-elements">
+            <div class="circle circle-1"></div>
+            <div class="circle circle-2"></div>
+        </div>
+        
+        <div class="left-section">
+            <div class="logo">Brrrand</div>
+            <div class="tagline">Brand Asset Extractor</div>
+            <div class="subtitle">Extract logos, colors & fonts from any website instantly</div>
+            
+            <div class="badge">FREE • NO SIGNUP</div>
+            
+            <ul class="features">
+                <li>Instant downloads</li>
+                <li>Works on any website</li>
+                <li>No registration required</li>
+                <li>Perfect for designers</li>
+            </ul>
+            
+            <div class="domain">brrrand.it.com</div>
+        </div>
+        
+        <div class="right-section">
+            <div class="section">
+                <div class="section-title">Logos</div>
+                <div class="logos-grid">
+                    <div class="logo-item logo-apple">🍎</div>
+                    <div class="logo-item logo-instagram">📷</div>
+                    <div class="logo-item logo-twitter">🐦</div>
+                    <div class="logo-item logo-spotify">🎵</div>
+                    <div class="logo-item logo-netflix">N</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Colors</div>
+                <div class="colors-grid">
+                    <div class="color-swatch color-1">
+                        <div class="color-label">#f09433</div>
+                    </div>
+                    <div class="color-swatch color-2">
+                        <div class="color-label">#1db954</div>
+                    </div>
+                    <div class="color-swatch color-3">
+                        <div class="color-label">#e50914</div>
+                    </div>
+                    <div class="color-swatch color-4">
+                        <div class="color-label">#1da1f2</div>
+                    </div>
+                    <div class="color-swatch color-5">
+                        <div class="color-label">#a1a1a6</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Fonts</div>
+                <div class="fonts-grid">
+                    <div class="font-item">
+                        <div class="font-preview font-apple">Apple</div>
+                        <div class="font-name">San Francisco</div>
+                    </div>
+                    <div class="font-item">
+                        <div class="font-preview font-google">Google</div>
+                        <div class="font-name">Product Sans</div>
+                    </div>
+                    <div class="font-item">
+                        <div class="font-preview font-netflix">Netflix</div>
+                        <div class="font-name">Netflix Sans</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button class="cta">Try Now →</button>
+    </div>
+</body>
+</html>

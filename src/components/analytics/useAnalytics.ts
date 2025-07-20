@@ -49,11 +49,53 @@ export function useAnalytics() {
     });
   }, []);
 
+  /**
+   * Track SEO-related events
+   */
+  const trackSEOEvent = useCallback((action: string, label?: string, value?: number) => {
+    analyticsService.trackEvent({
+      action,
+      category: EventCategory.SEO,
+      label,
+      value
+    });
+  }, []);
+
+  /**
+   * Track search visibility metrics
+   */
+  const trackSearchVisibility = useCallback((source: string, query?: string) => {
+    analyticsService.trackEvent({
+      action: 'search_visit',
+      category: EventCategory.SEO,
+      label: source,
+      value: query ? 1 : 0
+    });
+  }, []);
+
+  /**
+   * Track page performance for SEO
+   */
+  const trackPagePerformance = useCallback((metrics: { fcp?: number; lcp?: number; cls?: number; fid?: number }) => {
+    Object.entries(metrics).forEach(([metric, value]) => {
+      if (value !== undefined) {
+        analyticsService.trackEvent({
+          action: `core_web_vital_${metric}`,
+          category: EventCategory.SEO,
+          value: Math.round(value)
+        });
+      }
+    });
+  }, []);
+
   return {
     trackEvent,
     trackExtraction,
     trackAssetDownload,
     trackError,
-    trackAction
+    trackAction,
+    trackSEOEvent,
+    trackSearchVisibility,
+    trackPagePerformance
   };
 }
