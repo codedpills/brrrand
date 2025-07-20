@@ -1,7 +1,6 @@
 /**
  * Utility functions for request validation and content sanitization
  */
-import * as cheerio from 'cheerio';
 
 /**
  * List of blocked host names for security purposes
@@ -120,42 +119,36 @@ export function sanitizeContent(html: string): string {
   if (!html) return '';
   
   try {
-    const $ = cheerio.load(html);
+    // Remove script tags and their content
+    let sanitized = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
     
-    // Remove potentially dangerous elements
-    DANGEROUS_ELEMENTS.forEach((element) => {
-      $(element).remove();
-    });
+    // Remove iframe tags
+    sanitized = sanitized.replace(/<iframe\b[^>]*>/gi, '');
+    sanitized = sanitized.replace(/<\/iframe>/gi, '');
     
-    // Remove potentially dangerous attributes
-    $('*').each((_, element) => {
-      // Use any to bypass type checking for cheerio elements
-      const attributes = (element as any).attribs || {};
-      
-      Object.keys(attributes).forEach((attribute) => {
-        const attrValue = attributes[attribute].toLowerCase();
-        const attributeLower = attribute.toLowerCase();
-        
-        // Remove event handlers (on*)
-        if (attributeLower.startsWith('on')) {
-          $(element).removeAttr(attribute);
-        }
-        
-        // Remove dangerous URLs
-        if (URL_ATTRIBUTES.includes(attributeLower as any)) {
-          if (attrValue.startsWith('javascript:') || 
-              attrValue.startsWith('data:') || 
-              attrValue.startsWith('vbscript:')) {
-            $(element).removeAttr(attribute);
-          }
-        }
-      });
-    });
+    // Remove object and embed tags
+    sanitized = sanitized.replace(/<(?:object|embed|applet)\b[^>]*>/gi, '');
+    sanitized = sanitized.replace(/<\/(?:object|embed|applet)>/gi, '');
     
-    return $.html();
+    // Remove form elements
+    sanitized = sanitized.replace(/<(?:form|input|button)\b[^>]*>/gi, '');
+    sanitized = sanitized.replace(/<\/(?:form|input|button)>/gi, '');
+    
+    // Remove meta tags (except charset and viewport)
+    sanitized = sanitized.replace(/<meta\b(?![^>]*(?:charset|viewport))[^>]*>/gi, '');
+    
+    // Remove event handlers (onclick, onload, etc.)
+    sanitized = sanitized.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
+    
+    // Remove javascript: and data: protocols from href and src attributes
+    sanitized = sanitized.replace(/(?:href|src)\s*=\s*["'](?:javascript|data):[^"']*["']/gi, '');
+    
+    // Return the sanitized content as-is (don't escape HTML entities for now)
+    return sanitized;
   } catch (error) {
-    console.error('Error sanitizing content:', error);
-    return ''; // Return empty string on error
+    console.error('Content sanitization failed:', error);
+    // Return safely escaped content if sanitization fails
+    return html.replace(/[<>&"']/g, (c) => HTML_ENTITY_MAP[c] || c);
   }
 }
 

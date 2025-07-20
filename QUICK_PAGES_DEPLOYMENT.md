@@ -171,6 +171,19 @@ Your app supports different modes:
 - Verify all dependencies are in `package.json`
 - Test build locally: `npm run build`
 
+### Proxy Error (500)
+If you get "Proxy error (500)" when testing asset extraction:
+
+1. **Check KV Binding**: Ensure `RATE_LIMIT_KV` namespace is properly bound
+2. **View Function Logs**: Check Cloudflare Pages Functions logs for detailed errors
+3. **Test Health Endpoint**: Verify `https://brrrand.it.com/api/health` returns OK
+4. **Redeploy**: Sometimes a fresh deployment resolves binding issues
+
+**Common Proxy Issues:**
+- Missing KV namespace binding → Functions fail to access rate limiting
+- Network timeouts → Target website blocking requests
+- Invalid URLs → Validation failing on input
+
 ### Functions Not Working
 - Check KV namespace is properly bound
 - Verify environment variables are set

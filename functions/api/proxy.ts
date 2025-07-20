@@ -17,7 +17,10 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     'Access-Control-Allow-Headers': 'Content-Type',
   };
 
+  console.log('Proxy request received:', { targetUrl, hasKV: !!env.RATE_LIMIT_KV });
+
   if (!targetUrl || typeof targetUrl !== 'string') {
+    console.log('Invalid URL parameter:', targetUrl);
     return new Response(JSON.stringify({ 
       error: 'URL parameter is required and must be a string' 
     }), {
@@ -69,7 +72,26 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
                      request.headers.get('X-Real-IP') || 
                      'unknown';
 
-    const rateLimitResult = await checkRateLimit(clientIp, env.RATE_LIMIT_KV);
+    console.log('Client IP:', clientIp);
+
+    // Check rate limit if KV is available
+    let rateLimitResult = {
+      limited: false,
+      remaining: 100,
+      resetTime: Date.now() + 3600000 // 1 hour from now
+    };
+
+    if (env.RATE_LIMIT_KV) {
+      try {
+        rateLimitResult = await checkRateLimit(clientIp, env.RATE_LIMIT_KV);
+        console.log('Rate limit result:', rateLimitResult);
+      } catch (error) {
+        console.error('Rate limit check failed:', error);
+        // Continue without rate limiting if KV fails
+      }
+    } else {
+      console.warn('RATE_LIMIT_KV not available, skipping rate limiting');
+    }
     
     if (rateLimitResult.limited) {
       return new Response(JSON.stringify({
@@ -147,14 +169,33 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     }
     
   } catch (error) {
-    console.error('Proxy error:', error);
+    console.error('Proxy error details:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      targetUrl,
+      timestamp: new Date().toISOString()
+    });
     
     if (error instanceof Error) {
-      if (error.message.includes('fetch')) {
+      if (error.message.includes('fetch') || error.message.includes('network')) {
         return new Response(JSON.stringify({ 
-          error: 'Failed to fetch website content' 
+          error: 'Failed to fetch website content',
+          details: 'The target website may be unavailable or blocking requests'
         }), {
           status: 502,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        });
+      }
+      
+      if (error.message.includes('timeout')) {
+        return new Response(JSON.stringify({ 
+          error: 'Request timeout',
+          details: 'The target website took too long to respond'
+        }), {
+          status: 504,
           headers: {
             'Content-Type': 'application/json',
             ...corsHeaders
@@ -164,7 +205,8 @@ export async function onRequestGet(context: { request: Request; env: Env }) {
     }
     
     return new Response(JSON.stringify({ 
-      error: 'Internal server error' 
+      error: 'Internal server error',
+      details: 'An unexpected error occurred'
     }), {
       status: 500,
       headers: {

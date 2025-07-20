@@ -150,7 +150,7 @@ describe('LandingPage', () => {
     // Submit without entering URL
     await user.click(button)
     
-    expect(screen.getByRole('alert')).toHaveTextContent(/url is required/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(/please enter a url/i)
   })
 
   it('should extract and display assets when form is submitted with valid URL', async () => {
